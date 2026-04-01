@@ -63,15 +63,28 @@ Claude is asking the user a clarifying question — distinct from a permission p
 
 Claude Code has two operational modes visible in the status bar. This is orthogonal to the above states — a session can be in plan mode and idle, working, or needs-input.
 
-**Key markers (HARD SIGNALS):**
-- `⏸ plan mode on (shift+tab to cycle)` — visible in the status bar at the bottom of the pane
+**Status bar indicators:**
+- Plan mode: `⏸ plan mode on (shift+tab to cycle)`
+- Edit mode: `⏵⏵ accept edits on (shift+tab to cycle)`
+
+**Other markers:**
 - `Entered plan mode` — text output when Claude transitions into plan mode
 - `Claude is now exploring and designing an implementation approach.` — plan mode entry text
 - `✻` (U+273B) spinner prefix during plan mode tool execution (vs. `⏺` in edit mode)
 
-**Edit mode:** No explicit "edit mode" indicator in the status bar — edit mode is the default. The absence of `⏸ plan mode on` means the session is in edit mode.
+**WARNING: Status bar is NOT a reliable hard signal.** Users can install custom status bar plugins that change the layout and content. The built-in Claude Code status bar contains the mode indicators above, but custom plugins may reposition, wrap, or obscure them. The classifier must degrade gracefully when the status bar format is unexpected — treat mode detection from the status bar as a **soft signal**.
+
+**More reliable mode signals:**
+- `Entered plan mode` / transition text in the main pane output (hard signal — not affected by plugins)
+- `✻` vs `⏺` spinner prefix (hard signal — in main pane, not status bar)
 
 **Why this matters for the attention model:** Plan mode sessions are exploring and reading, not making changes. A plan mode session that's "working" is lower urgency than an edit mode session that's "needs input". The dashboard should surface this distinction.
+
+### Terminal Tab Title
+
+The terminal tab title (set via ANSI escape sequences) is an additional signal source. Claude Code sets the tab title to reflect the current operation, which can be captured via `tmux display-message -p '#{pane_title}'`.
+
+**This was not captured in this spike** and should be investigated as a follow-up. Tab titles may provide a more stable signal than the status bar since they are set by Claude Code itself and not affected by custom status bar plugins.
 
 ### Errored
 
@@ -101,9 +114,8 @@ Two distinct error types observed:
 | `Esc to cancel` | needs-input | Footer of permission dialog |
 | `☐` + question text | needs-input (ask) | AskUserQuestion prompt — requires user decision |
 | `Enter to select · ↑/↓ to navigate` | needs-input (ask) | Footer of AskUserQuestion dialog |
-| `⏸ plan mode on` | plan mode | Status bar indicator — orthogonal to other states |
-| `Entered plan mode` | plan mode | Transition text in output |
-| `✻` spinner prefix | working (plan) | Plan mode tool execution spinner |
+| `Entered plan mode` | plan mode | Transition text in main pane output |
+| `✻` spinner prefix | working (plan) | Plan mode tool execution spinner (in main pane) |
 | `error:` at shell level | errored | CLI error (outside Claude TUI) |
 | `Error: Exit code` | errored | Tool failure (inside Claude TUI) |
 
@@ -118,6 +130,9 @@ Two distinct error types observed:
 | `Searching for N patterns` | working | Tool-specific progress indicator |
 | Status bar `Ctx: N` value | varies | Higher context = more work done, but not real-time |
 | `Cost: $X.XX` | varies | Increases during work, but not a state indicator |
+| `⏸ plan mode on` | plan mode | Status bar — unreliable due to custom plugins |
+| `⏵⏵ accept edits on` | edit mode | Status bar — unreliable due to custom plugins |
+| Terminal tab title | varies | Set by Claude Code, not affected by plugins — needs investigation |
 
 ### Compound Signals (Most Reliable)
 
@@ -128,7 +143,7 @@ The classifier should use combinations:
 - **Needs input (permission)** = `Do you want to proceed?` or `Do you want to create` (hard signal)
 - **Needs input (question)** = `☐` marker + `Enter to select` footer (hard signal — higher urgency than permission)
 - **Errored** = `error:` or `Error:` in recent output (but session may have recovered to idle)
-- **Plan mode** = `⏸ plan mode on` in status bar (orthogonal modifier — combine with above states)
+- **Plan mode** = `Entered plan mode` in output OR `✻` spinner (main pane signals preferred over status bar due to plugin variability)
 
 ## ANSI Handling
 
@@ -195,6 +210,7 @@ spike/fixtures/
 5. **Include `Unknown` state**: Use when output doesn't match any known pattern (e.g., Claude Code is still loading, or the session crashed).
 6. **Use stripped output only**: ANSI codes add noise without useful signal.
 7. **Focus on the last 30-50 lines**: The most recent state is at the bottom of the pane output.
-8. **Detect plan mode from status bar**: Check the last 2-3 lines for `⏸ plan mode on`. This is a mode modifier, not a state — combine it with the primary state classification.
+8. **Detect plan mode from main pane output, not status bar**: Prefer `Entered plan mode` transition text and `✻` spinner prefix over status bar indicators. Custom status bar plugins can distort or hide the built-in mode indicators. Status bar can be used as a secondary/fallback signal but should not be the primary detection method.
 9. **Distinguish AskUserQuestion from permission prompts**: Look for `☐` marker and `Enter to select · ↑/↓ to navigate` footer. AskUserQuestion requires more user thought than a yes/no permission — the attention model should weight it higher.
-10. **Look for `✻` as plan mode spinner**: When Claude is working in plan mode, the spinner prefix is `✻` instead of `⏺`. This distinguishes plan-mode working from edit-mode working.
+10. **Investigate terminal tab title**: Claude Code sets the terminal tab title via ANSI escapes. This can be read with `tmux display-message -p '#{pane_title}'` and may be a more stable signal than status bar content since it's not affected by custom plugins. This was not captured in this spike.
+11. **Design for status bar variability**: Users install custom status bar plugins. The classifier should not hard-depend on specific status bar formatting. Degrade gracefully when the status bar doesn't match expected patterns.
