@@ -50,18 +50,19 @@ export function SessionCard({ session }: { session: Session }) {
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <h3 className="font-semibold text-gray-100 truncate">{session.name}</h3>
-        <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${config.badge}`}
-        >
-          {config.label}
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${config.badge}`}
+          >
+            {config.label}
+          </span>
+          {session.state === "needs-input" && session.needsInputType && (
+            <span className="rounded px-1.5 py-0.5 text-[9px] text-amber-300/60 uppercase tracking-wide">
+              {session.needsInputType === "permission" ? "Permission" : "Question"}
+            </span>
+          )}
+        </div>
       </div>
-
-      {session.state === "needs-input" && session.needsInputType && (
-        <span className="inline-block mb-2 rounded bg-amber-400/10 px-1.5 py-0.5 text-xs text-amber-200">
-          {session.needsInputType === "permission" ? "Permission" : "Question"}
-        </span>
-      )}
 
       <p className="text-xs text-gray-400 mb-2 truncate" title={session.workingDirectory}>
         {dirLabel(session.workingDirectory)}
@@ -69,7 +70,7 @@ export function SessionCard({ session }: { session: Session }) {
 
       {session.lastOutputLines.length > 0 && (
         <div className="mt-auto rounded bg-gray-900/60 px-2 py-1.5">
-          {session.lastOutputLines.slice(-2).map((line, i) => (
+          {session.lastOutputLines.map((line, i) => (
             <p key={i} className="text-xs font-mono text-gray-300 truncate">
               {line}
             </p>

@@ -1,6 +1,11 @@
 export type SessionState = "needs-input" | "working" | "idle" | "errored" | "unknown";
 export type NeedsInputType = "permission" | "question";
 
+export interface RuntimeState {
+  tmuxAlive: boolean;
+  claudeAlive: boolean;
+}
+
 export interface Session {
   id: string;
   name: string;
@@ -14,4 +19,5 @@ export interface Session {
   createdAt: string;
   previousState: string | null;
   paneTitle: string | null;
+  runtimeState: RuntimeState;
 }

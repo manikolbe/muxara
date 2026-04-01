@@ -6,30 +6,50 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Muxara is a lightweight desktop application that serves as a control plane for developers running multiple parallel Claude Code sessions. It provides a persistent, always-visible dashboard showing session cards with status, context, and quick-switch capabilities. It builds on top of tmux as the session execution layer.
 
-## Architecture (Planned)
+See `plan.md` for the full product brief and design vision.
 
-- **Desktop framework**: Tauri (Rust backend + web frontend)
-- **Frontend**: React + Tailwind CSS — card-based layout with two-pane cards (recent context + orientation metadata)
-- **Backend**: Rust (via Tauri commands) — interfaces with tmux to discover, monitor, and manage sessions
-- **Session layer**: tmux — Muxara does not replace tmux, it builds a control/observability layer on top of it
+## Architecture
 
-### Data Flow
+Tauri v2 desktop app: Rust backend + React/TypeScript/Tailwind frontend.
 
-UI requests session list -> Tauri backend queries tmux -> parses output and derives state -> returns structured session objects -> UI renders cards. This loop refreshes every 1-2 seconds.
-
-## Key Concepts
-
-- **Session cards**: Each Claude Code session is represented as a card with identity, status (running/blocked/idle), recent conversation tail, and attention signals
-- **Attention model**: Sessions are categorized by whether they need user intervention, are actively progressing, or are safe to ignore. Status is inferred from runtime signals, not manual annotations
-- **New session flow**: A "+" button provisions a tmux session, starts Claude Code in it, and auto-adds it to the dashboard
+See `docs/architecture.md` for the full architecture reference including project structure, module responsibilities, data flow, key patterns, and testing strategy.
 
 ## Design Constraints
 
 - Optimized for single-monitor setups — compact, always-on-top window that doesn't dominate screen space
 - Scales gracefully with growing number of sessions
 - Reduces cognitive load rather than adding process overhead
+- tmux is managed by Muxara and hidden from the user
 - Intended for open-source publication under the name "Muxara"
+
+## Development Commands
+
+```sh
+# Run the full app (frontend + backend) in dev mode
+npm run tauri dev
+
+# Run Rust backend tests
+cd src-tauri && cargo test
+
+# Build for production
+npm run tauri build
+
+# Frontend only (without Tauri shell, for UI work)
+npm run dev
+```
+
+## Development Practices
+
+### Documentation updates
+
+Every ticket must include documentation updates alongside code changes. This keeps docs in sync with the codebase and ensures that developers and Claude Code sessions working on future tickets have accurate context.
+
+- **`CLAUDE.md`**: Update the "Current State" section and any architectural descriptions that change
+- **`docs/architecture.md`**: Update when backend modules, data flow, or key patterns change
+- **Architecture docs should cover**: module responsibilities, data flow, key patterns/conventions, error handling strategy, and boundaries between components
 
 ## Current State
 
-The project is pre-implementation. `plan.md` contains the full product brief and design vision. No code has been written yet.
+The Tauri scaffold is in place (ticket #4), the tmux integration layer is implemented (ticket #5), the state classifier is wired up (ticket #6), and the frontend is connected to live backend data (ticket #7). The Rust backend can discover tmux sessions, capture pane output with ANSI stripping, detect running Claude processes, classify session state (NeedsInput, Working, Idle, Errored, Unknown), and maintain an in-memory session store that reconciles with live tmux state. The classifier uses regex-based pattern matching on pane output with temporal delta detection and Working→Idle debounce to prevent flicker. The frontend polls the backend every 1.5s via a `useSessions` hook and renders live session data with loading, error, and empty states.
+
+**Not yet implemented:** attention signals, new session provisioning ("+" button), session switching.
