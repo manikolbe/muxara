@@ -26,7 +26,7 @@ function App() {
             <rect x="2" y="13" width="9" height="9" rx="2" fill="currentColor" opacity="0.5" />
             <rect x="13" y="13" width="9" height="9" rx="2" fill="currentColor" opacity="0.3" />
           </svg>
-          <span className="text-base font-semibold text-gray-300">Muxara</span>
+          <span className="text-sm font-semibold text-gray-300 uppercase tracking-[0.2em]">Muxara</span>
         </div>
         <NewSessionButton />
       </div>
