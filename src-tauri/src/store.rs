@@ -171,6 +171,26 @@ impl SessionStore {
         self.sessions.retain(|target, _| seen_targets.contains(target));
     }
 
+    pub fn remove_session(&mut self, pane_target: &str) {
+        self.sessions.remove(pane_target);
+    }
+
+    pub fn rename_session(&mut self, old_pane_target: &str, new_name: &str) {
+        // The pane target changes when a session is renamed (e.g. "old:0.0" → "new:0.0")
+        if let Some(mut tracked) = self.sessions.remove(old_pane_target) {
+            tracked.tmux_session_name = new_name.to_string();
+            tracked.display_name = new_name.to_string();
+            // Reconstruct pane target with new session name
+            let new_target = format!(
+                "{}:{}",
+                new_name,
+                old_pane_target.split_once(':').map(|(_, rest)| rest).unwrap_or("0.0")
+            );
+            tracked.pane_target = new_target.clone();
+            self.sessions.insert(new_target, tracked);
+        }
+    }
+
     pub fn to_sessions(&self) -> Vec<Session> {
         let mut sessions: Vec<Session> = self
             .sessions

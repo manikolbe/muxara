@@ -57,7 +57,8 @@ The frontend is a React SPA bundled by Vite and rendered inside the Tauri webvie
 - **`SessionGrid`** — renders a responsive CSS grid (`1 / 2 / 3` columns at sm/lg breakpoints) of `SessionCard` components. Handles three non-data states: loading (shown during first fetch), error (shown when the backend call fails), and empty (no sessions exist). NeedsInput sessions appear first (sorting is handled by the backend).
 - **`SessionCard`** — two-zone card layout, clickable to focus the session:
   - **Click handler**: calls `invoke("focus_session", { sessionId })` to open a Terminal.app window attached to the tmux session. Brief scale-down + brightness animation on click.
-  - **Orientation zone** (top): status dot (`StatusBadge`), session title, abbreviated working directory, state label + recency (e.g. "Working · 2m ago"). NeedsInput cards additionally show the input type (Permission / Question).
+  - **Context menu** (right-click): shows a dropdown with Rename and Kill Session actions. Kill shows a confirmation dialog before calling `invoke("kill_session", { sessionId })`. Rename replaces the session title with an inline text input that submits on Enter/blur and cancels on Escape, calling `invoke("rename_session", { sessionId, newName })`.
+  - **Orientation zone** (top): status dot (`StatusBadge`), session title (or inline rename input), abbreviated working directory, state label + recency (e.g. "Working · 2m ago"). NeedsInput cards additionally show the input type (Permission / Question).
   - **Context zone** (bottom, separated by a subtle divider): last terminal output lines in monospace.
   - State styling (left border color, background tint) is driven by a `stateConfig` record keyed by `SessionState`.
 - **`StatusBadge`** — colored dot indicating session state. Working state pulses via `animate-pulse`.
@@ -123,6 +124,10 @@ Frontend-facing types serialized via serde:
 `create_session(name, working_dir)` creates a new tmux session and starts Claude Code in it. Requires a non-empty `working_dir`. Ensures the tmux server is running, checks for duplicate session names (returns an error if one exists), creates the session with `tmux new-session -d -s <name> -c <dir>`, then sends the `claude` command via `tmux send-keys`. The session auto-appears in the dashboard on the next poll cycle.
 
 `focus_session(session_id)` opens a new iTerm2 window attached to the tmux session. It extracts the session name from the pane target ID, verifies the session exists, then uses AppleScript (`osascript`) to launch iTerm2 with `tmux attach -t <session>`. Returns an error string if the session is not found or the terminal fails to open.
+
+`kill_session(session_id)` kills a tmux session. Extracts the session name from the pane target ID, calls `tmux kill-session -t <name>`, and removes the session from the in-memory store so the UI updates immediately.
+
+`rename_session(session_id, new_name)` renames a tmux session. Validates that the new name is non-empty and not a duplicate, calls `tmux rename-session -t <old> <new>`, and updates the in-memory store (session name, display name, and pane target key) so the UI reflects the change immediately.
 
 `get_sessions()` is called by the frontend every 2 seconds:
 1. Check if tmux is alive; start server if needed

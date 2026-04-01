@@ -13,7 +13,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(Mutex::new(SessionStore::new()))
-        .invoke_handler(tauri::generate_handler![commands::get_sessions, commands::focus_session, commands::create_session])
+        .invoke_handler(tauri::generate_handler![commands::get_sessions, commands::focus_session, commands::create_session, commands::kill_session, commands::rename_session])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

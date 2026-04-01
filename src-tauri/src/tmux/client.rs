@@ -296,6 +296,18 @@ pub fn create_session(name: &str, working_dir: &str) -> Result<(), TmuxError> {
     Ok(())
 }
 
+/// Kill a tmux session by name.
+pub fn kill_session(session_name: &str) -> Result<(), TmuxError> {
+    run_tmux(&["kill-session", "-t", session_name])?;
+    Ok(())
+}
+
+/// Rename a tmux session.
+pub fn rename_session(old_name: &str, new_name: &str) -> Result<(), TmuxError> {
+    run_tmux(&["rename-session", "-t", old_name, new_name])?;
+    Ok(())
+}
+
 /// Return the tty of the first client attached to a tmux session, if any.
 pub fn list_client_tty(session_name: &str) -> Option<String> {
     run_tmux(&["list-clients", "-t", session_name, "-F", "#{client_tty}"])

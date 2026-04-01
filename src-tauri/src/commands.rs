@@ -95,6 +95,48 @@ pub fn create_session(name: String, working_dir: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn kill_session(session_id: String, store: State<'_, Mutex<SessionStore>>) -> Result<(), String> {
+    let session_name = session_id
+        .split(':')
+        .next()
+        .unwrap_or(&session_id);
+
+    client::kill_session(session_name).map_err(|e| e.to_string())?;
+
+    // Remove from the store immediately so the UI updates without waiting for the next poll
+    let mut store = store.lock().unwrap();
+    store.remove_session(&session_id);
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn rename_session(session_id: String, new_name: String, store: State<'_, Mutex<SessionStore>>) -> Result<(), String> {
+    if new_name.is_empty() {
+        return Err("Name cannot be empty".to_string());
+    }
+
+    let session_name = session_id
+        .split(':')
+        .next()
+        .unwrap_or(&session_id);
+
+    // Check for duplicate name
+    let sessions = client::list_sessions().map_err(|e| e.to_string())?;
+    if sessions.iter().any(|s| s.name == new_name) {
+        return Err(format!("Session '{}' already exists", new_name));
+    }
+
+    client::rename_session(session_name, &new_name).map_err(|e| e.to_string())?;
+
+    // Update the store so the UI reflects the rename immediately
+    let mut store = store.lock().unwrap();
+    store.rename_session(&session_id, &new_name);
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_sessions(store: State<'_, Mutex<SessionStore>>) -> Vec<Session> {
     let tmux_alive = client::is_tmux_alive();
 

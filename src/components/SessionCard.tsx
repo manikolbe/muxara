@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Session, SessionState } from "../types";
 import { StatusBadge } from "./StatusBadge";
@@ -64,8 +64,35 @@ function stateLabel(session: Session): string {
 export function SessionCard({ session, onScrollActivity }: { session: Session; onScrollActivity: () => void }) {
   const config = stateConfig[session.state];
   const [clicking, setClicking] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [showConfirmKill, setShowConfirmKill] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(session.name);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const renameRef = useRef<HTMLInputElement>(null);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!menuPos) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuPos(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuPos]);
+
+  // Focus rename input when entering rename mode
+  useEffect(() => {
+    if (renaming && renameRef.current) {
+      renameRef.current.focus();
+      renameRef.current.select();
+    }
+  }, [renaming]);
 
   async function handleClick() {
+    if (renaming) return;
     setClicking(true);
     try {
       await invoke("focus_session", { sessionId: session.id });
@@ -76,21 +103,65 @@ export function SessionCard({ session, onScrollActivity }: { session: Session; o
     }
   }
 
+  function handleContextMenu(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuPos({ x: e.clientX, y: e.clientY });
+  }
+
+  async function handleKill() {
+    try {
+      await invoke("kill_session", { sessionId: session.id });
+    } catch (err) {
+      console.error("Failed to kill session:", err);
+    }
+    setShowConfirmKill(false);
+  }
+
+  async function handleRenameSubmit() {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== session.name) {
+      try {
+        await invoke("rename_session", { sessionId: session.id, newName: trimmed });
+      } catch (err) {
+        console.error("Failed to rename session:", err);
+      }
+    }
+    setRenaming(false);
+  }
+
   return (
-    <div
-      onClick={handleClick}
-      className={`flex flex-col rounded-lg border-l-4 cursor-pointer transition-all duration-150 ${
-        clicking ? "scale-[0.97] brightness-125" : "hover:brightness-110"
-      } ${config.border} ${config.bg} shadow-md`}
-    >
-      {/* ── Orientation zone ── */}
-      <div className="px-3 pt-3 pb-2">
-        <div className="flex items-center gap-2 mb-1">
-          <StatusBadge state={session.state} />
-          <h3 className="font-semibold text-sm text-gray-100 truncate">
-            {session.name}
-          </h3>
-        </div>
+    <>
+      <div
+        onClick={handleClick}
+        onContextMenu={handleContextMenu}
+        className={`flex flex-col rounded-lg border-l-4 cursor-pointer transition-all duration-150 ${
+          clicking ? "scale-[0.97] brightness-125" : "hover:brightness-110"
+        } ${config.border} ${config.bg} shadow-md`}
+      >
+        {/* ── Orientation zone ── */}
+        <div className="px-3 pt-3 pb-2">
+          <div className="flex items-center gap-2 mb-1">
+            <StatusBadge state={session.state} />
+            {renaming ? (
+              <input
+                ref={renameRef}
+                className="font-semibold text-sm text-gray-100 bg-gray-700 border border-gray-600 rounded px-1 py-0.5 outline-none focus:border-blue-400 w-full"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRenameSubmit();
+                  if (e.key === "Escape") setRenaming(false);
+                }}
+                onBlur={handleRenameSubmit}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <h3 className="font-semibold text-sm text-gray-100 truncate">
+                {session.name}
+              </h3>
+            )}
+          </div>
         <p
           className="text-xs text-gray-400 truncate mb-1"
           title={session.workingDirectory}
@@ -104,21 +175,78 @@ export function SessionCard({ session, onScrollActivity }: { session: Session; o
         </p>
       </div>
 
-      {/* ── Context zone ── */}
-      {session.lastOutputLines.length > 0 &&
-        session.state !== "idle" &&
-        session.state !== "unknown" && (
-        <div className="border-t border-gray-700/50 px-3 py-2 mt-auto max-h-48 overflow-y-auto" onScroll={onScrollActivity}>
-          {session.lastOutputLines.map((line, i) => (
-            <p
-              key={i}
-              className="text-[11px] leading-4 font-mono text-gray-400 truncate"
-            >
-              {line || "\u00A0"}
-            </p>
-          ))}
+        {/* ── Context zone ── */}
+        {session.lastOutputLines.length > 0 &&
+          session.state !== "idle" &&
+          session.state !== "unknown" && (
+          <div className="border-t border-gray-700/50 px-3 py-2 mt-auto max-h-48 overflow-y-auto" onScroll={onScrollActivity}>
+            {session.lastOutputLines.map((line, i) => (
+              <p
+                key={i}
+                className="text-[11px] leading-4 font-mono text-gray-400 truncate"
+              >
+                {line || "\u00A0"}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Context menu ── */}
+      {menuPos && (
+        <div
+          ref={menuRef}
+          className="fixed z-50 bg-gray-800 border border-gray-600 rounded-lg shadow-xl py-1 min-w-[140px]"
+          style={{ left: menuPos.x, top: menuPos.y }}
+        >
+          <button
+            className="w-full text-left px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuPos(null);
+              setRenameValue(session.name);
+              setRenaming(true);
+            }}
+          >
+            Rename
+          </button>
+          <button
+            className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-gray-700 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuPos(null);
+              setShowConfirmKill(true);
+            }}
+          >
+            Kill Session
+          </button>
         </div>
       )}
-    </div>
+
+      {/* ── Kill confirmation dialog ── */}
+      {showConfirmKill && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowConfirmKill(false)}>
+          <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 shadow-xl max-w-xs w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm text-gray-200 mb-3">
+              Kill session <strong>{session.name}</strong>? This will terminate the session and any running processes.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-3 py-1.5 text-sm text-gray-300 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+                onClick={() => setShowConfirmKill(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm text-white bg-red-600 hover:bg-red-500 rounded transition-colors"
+                onClick={handleKill}
+              >
+                Kill
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
