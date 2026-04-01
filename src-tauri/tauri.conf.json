@@ -13,6 +13,7 @@
     "windows": [
       {
         "title": "Muxara",
+        "titleBarStyle": "overlay",
         "width": 1100,
         "height": 900,
         "minWidth": 480,
