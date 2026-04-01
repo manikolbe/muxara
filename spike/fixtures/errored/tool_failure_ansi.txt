@@ -1,0 +1,50 @@
+claude "Read the file /nonexistent/path/that/does/not/exist/foo.txt and summarize it"
+env: bash: No such file or directory
+/etc/zshrc:8: command not found: locale
+[38;5;76m❯[39m [32mclaude[39m [33m"Read the file /nonexistent/path/that/does/not/exist/foo.txt and summarize it"[39m
+[38;5;174m ▐[48;5;16m▛███▜[49m▌[39m   [1mClaude[0m [1mCode[0m [38;5;246mv2.1.89[39m
+[38;5;174m▝▜[48;5;16m█████[49m▛▘[39m  [38;5;246meu.anthropic.claude-opus-4-6-v1[39m [38;5;246m·[39m [38;5;246mAPI[39m [38;5;246mUsage[39m [38;5;246mBilling[39m
+[38;5;174m [39m [38;5;174m▘▘[39m [38;5;174m▝▝[39m    [38;5;246m~/projects/personal/muxara[39m
+
+[38;5;239m[48;5;237m❯ [38;5;231mRead the file /nonexistent/path/that/does/not/exist/foo.txt and summarize it[39m
+[49m
+  [38;5;246mRead [1m1[0m[38;5;246m file (ctrl+o to expand)[39m
+
+[38;5;231m⏺[39m That file doesn't exist. Could you double-check the path?
+
+[38;5;239m[48;5;237m❯ [38;5;231mRun this exact command: bash -c "exit 1" and show me the result[39m
+[49m
+[38;5;246m⏺[39m [1mBash[0m(bash -c "exit 1")
+[38;5;246m  ⎿  Running…[39m
+
+[38;5;153m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[39m [1m[38;5;153mBash command[0m
+
+   bash -c "exit 1"
+   [38;5;246mRun bash with exit code 1[39m
+
+ This command requires approval
+
+ Do you want to proceed?
+ [38;5;153m❯[39m [38;5;246m1.[39m [38;5;153mYes[39m
+   [38;5;246m2.[39m Yes, and don’t ask again for: bash:*
+   [38;5;246m3.[39m No
+
+ [38;5;246mEsc[39m [38;5;246mto[39m [38;5;246mcancel[39m [38;5;246m·[39m [38;5;246mTab[39m [38;5;246mto[39m [38;5;246mamend[39m [38;5;246m·[39m [38;5;246mctrl+e[39m [38;5;246mto[39m [38;5;246mexplain[39m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

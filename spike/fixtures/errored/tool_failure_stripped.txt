@@ -1,0 +1,50 @@
+claude "Read the file /nonexistent/path/that/does/not/exist/foo.txt and summarize it"
+env: bash: No such file or directory
+/etc/zshrc:8: command not found: locale
+❯ claude "Read the file /nonexistent/path/that/does/not/exist/foo.txt and summarize it"
+ ▐▛███▜▌   Claude Code v2.1.89
+▝▜█████▛▘  eu.anthropic.claude-opus-4-6-v1 · API Usage Billing
+  ▘▘ ▝▝    ~/projects/personal/muxara
+
+❯ Read the file /nonexistent/path/that/does/not/exist/foo.txt and summarize it
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ That file doesn't exist. Could you double-check the path?
+
+❯ Run this exact command: bash -c "exit 1" and show me the result
+
+⏺ Bash(bash -c "exit 1")
+  ⎿  Running…
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Bash command
+
+   bash -c "exit 1"
+   Run bash with exit code 1
+
+ This command requires approval
+
+ Do you want to proceed?
+ ❯ 1. Yes
+   2. Yes, and don’t ask again for: bash:*
+   3. No
+
+ Esc to cancel · Tab to amend · ctrl+e to explain
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

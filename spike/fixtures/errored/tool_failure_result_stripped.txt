@@ -1,0 +1,50 @@
+claude "Read the file /nonexistent/path/that/does/not/exist/foo.txt and summarize it"
+env: bash: No such file or directory
+/etc/zshrc:8: command not found: locale
+❯ claude "Read the file /nonexistent/path/that/does/not/exist/foo.txt and summarize it"
+ ▐▛███▜▌   Claude Code v2.1.89
+▝▜█████▛▘  eu.anthropic.claude-opus-4-6-v1 · API Usage Billing
+  ▘▘ ▝▝    ~/projects/personal/muxara
+
+❯ Read the file /nonexistent/path/that/does/not/exist/foo.txt and summarize it
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ That file doesn't exist. Could you double-check the path?
+
+❯ Run this exact command: bash -c "exit 1" and show me the result
+
+⏺ Bash(bash -c "exit 1")
+  ⎿  Error: Exit code 1
+
+⏺ The command exited with code 1 (non-zero), which indicates failure. That's expected since exit 1 explicitly tells bash to exit with a failure status. No output was produced — just the exit code.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Model: Opus 4.6 | Ctx: 16.8k | ⎇ main | 𖠰 main                                                                                                                                    ◐ medium · /effort
+  Cost: $0.05
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
