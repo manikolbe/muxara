@@ -194,6 +194,10 @@ impl SessionStore {
         self.sessions.retain(|target, _| seen_targets.contains(target));
     }
 
+    pub fn get_session(&self, pane_target: &str) -> Option<&TrackedSession> {
+        self.sessions.get(pane_target)
+    }
+
     pub fn remove_session(&mut self, pane_target: &str) {
         self.sessions.remove(pane_target);
     }

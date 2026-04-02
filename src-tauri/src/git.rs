@@ -1,6 +1,31 @@
 use std::path::Path;
 use std::process::Command;
 
+/// Sanitize a name for use as a git worktree name (becomes a directory name).
+/// Replaces any character that isn't alphanumeric, hyphen, or underscore with a hyphen.
+/// Collapses consecutive hyphens and trims leading/trailing hyphens.
+pub fn sanitize_worktree_name(name: &str) -> String {
+    let sanitized: String = name
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .collect();
+    // Collapse consecutive hyphens and trim
+    let mut result = String::new();
+    let mut prev_hyphen = true; // treat start as hyphen to trim leading
+    for c in sanitized.chars() {
+        if c == '-' {
+            if !prev_hyphen {
+                result.push(c);
+            }
+            prev_hyphen = true;
+        } else {
+            result.push(c);
+            prev_hyphen = false;
+        }
+    }
+    result.trim_end_matches('-').to_string()
+}
+
 /// Check whether a directory is inside a git repository.
 pub fn is_git_repo(path: &str) -> bool {
     Command::new("git")
@@ -37,10 +62,61 @@ pub fn is_worktree(path: &str) -> bool {
     git_path.is_file()
 }
 
+/// Check whether a git working tree has uncommitted changes (staged or unstaged)
+/// or untracked files.
+pub fn has_uncommitted_changes(path: &str) -> bool {
+    Command::new("git")
+        .args(["-C", path, "status", "--porcelain"])
+        .output()
+        .map(|o| o.status.success() && !o.stdout.is_empty())
+        .unwrap_or(false)
+}
+
+/// Remove a git worktree. Finds the parent repo from the worktree's `.git` file
+/// and runs `git worktree remove <path>`.
+pub fn remove_worktree(worktree_path: &str) -> Result<(), String> {
+    let output = Command::new("git")
+        .args(["-C", worktree_path, "worktree", "remove", worktree_path])
+        .output()
+        .map_err(|e| format!("Failed to run git worktree remove: {}", e))?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        Err(format!("Failed to remove worktree: {}", stderr))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn test_sanitize_worktree_name_simple() {
+        assert_eq!(sanitize_worktree_name("my-session"), "my-session");
+        assert_eq!(sanitize_worktree_name("feature_123"), "feature_123");
+    }
+
+    #[test]
+    fn test_sanitize_worktree_name_spaces() {
+        assert_eq!(sanitize_worktree_name("my cool session"), "my-cool-session");
+    }
+
+    #[test]
+    fn test_sanitize_worktree_name_special_chars() {
+        assert_eq!(sanitize_worktree_name("feat/add-auth"), "feat-add-auth");
+        assert_eq!(sanitize_worktree_name("fix: bug #42"), "fix-bug-42");
+        assert_eq!(sanitize_worktree_name("hello@world!"), "hello-world");
+    }
+
+    #[test]
+    fn test_sanitize_worktree_name_consecutive_hyphens() {
+        assert_eq!(sanitize_worktree_name("a - - b"), "a-b");
+        assert_eq!(sanitize_worktree_name("---leading"), "leading");
+        assert_eq!(sanitize_worktree_name("trailing---"), "trailing");
+    }
 
     #[test]
     fn test_is_git_repo_on_real_repo() {

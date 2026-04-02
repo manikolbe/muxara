@@ -68,6 +68,7 @@ export function SessionCard({ session, onScrollActivity, focused, onFocus }: { s
   const [clicking, setClicking] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [showConfirmKill, setShowConfirmKill] = useState(false);
+  const [killError, setKillError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(session.name);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -115,10 +116,11 @@ export function SessionCard({ session, onScrollActivity, focused, onFocus }: { s
   async function handleKill() {
     try {
       await invoke("kill_session", { sessionId: session.id });
+      setShowConfirmKill(false);
+      setKillError(null);
     } catch (err) {
-      console.error("Failed to kill session:", err);
+      setKillError(String(err));
     }
-    setShowConfirmKill(false);
   }
 
   async function handleRenameSubmit() {
@@ -229,6 +231,7 @@ export function SessionCard({ session, onScrollActivity, focused, onFocus }: { s
             onClick={(e) => {
               e.stopPropagation();
               setMenuPos(null);
+              setKillError(null);
               setShowConfirmKill(true);
             }}
           >
@@ -243,6 +246,11 @@ export function SessionCard({ session, onScrollActivity, focused, onFocus }: { s
           <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 shadow-xl max-w-xs w-full mx-4" onClick={(e) => e.stopPropagation()}>
             <p className="text-sm text-gray-200 mb-3">
               Kill session <strong>{session.name}</strong>? This will terminate the session and any running processes.
+              {session.isWorktree && (
+                <span className="block text-xs text-gray-400 mt-1">
+                  The associated git worktree will also be removed.
+                </span>
+              )}
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -258,6 +266,9 @@ export function SessionCard({ session, onScrollActivity, focused, onFocus }: { s
                 Kill
               </button>
             </div>
+            {killError && (
+              <p className="text-xs text-red-400 mt-2">{killError}</p>
+            )}
           </div>
         </div>
       )}

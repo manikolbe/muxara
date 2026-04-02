@@ -117,7 +117,8 @@ pub fn create_session(
     };
 
     let final_cmd = if use_worktree && git::is_git_repo(&working_dir) {
-        format!("{} -w {}", base_cmd, &name)
+        let wt_name = git::sanitize_worktree_name(&name);
+        format!("{} -w {}", base_cmd, wt_name)
     } else {
         base_cmd.to_string()
     };
@@ -146,11 +147,41 @@ pub fn kill_session(session_id: String, store: State<'_, Mutex<SessionStore>>) -
         .next()
         .unwrap_or(&session_id);
 
+    // Check if session is in a worktree — if so, block on uncommitted changes
+    // and clean up the worktree after killing.
+    let worktree_path = {
+        let store = store.lock().unwrap();
+        store.get_session(&session_id).and_then(|s| {
+            if s.is_worktree == Some(true) {
+                Some(s.working_directory.clone())
+            } else {
+                None
+            }
+        })
+    };
+
+    if let Some(ref wt_path) = worktree_path {
+        if git::has_uncommitted_changes(wt_path) {
+            return Err(format!(
+                "Session '{}' has uncommitted changes in its worktree. Commit or discard changes before killing.",
+                session_name
+            ));
+        }
+    }
+
     client::kill_session(session_name).map_err(|e| e.to_string())?;
 
     // Remove from the store immediately so the UI updates without waiting for the next poll
     let mut store = store.lock().unwrap();
     store.remove_session(&session_id);
+
+    // Clean up the worktree after killing the tmux session
+    if let Some(ref wt_path) = worktree_path {
+        if let Err(e) = git::remove_worktree(wt_path) {
+            eprintln!("Warning: failed to remove worktree: {}", e);
+            // Don't fail the kill — the tmux session is already dead
+        }
+    }
 
     Ok(())
 }
