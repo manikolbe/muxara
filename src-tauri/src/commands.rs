@@ -23,13 +23,17 @@ pub fn focus_session(session_id: String) -> Result<(), String> {
         return Err(format!("Session '{}' not found", session_name));
     }
 
-    // Check if session already has an attached client (i.e. a terminal is already open)
-    let client_tty = client::list_client_tty(session_name);
+    // Check if ANY tmux client is attached (not just this session's).
+    // If so, switch it to the target session instead of opening a new tab.
+    let any_client_tty = client::list_any_client_tty();
+    let mut needs_new_tab = true;
 
-    let script = if let Some(tty) = client_tty {
-        // Find the existing iTerm2 window by matching the tty and focus it
-        format!(
-            r#"tell application "iTerm2"
+    if let Some(ref tty) = any_client_tty {
+        if client::switch_client(tty, session_name).is_ok() {
+            needs_new_tab = false;
+            // Focus the existing iTerm2 tab
+            let focus_script = format!(
+                r#"tell application "iTerm2"
     repeat with w in windows
         repeat with t in tabs of w
             repeat with s in sessions of t
@@ -44,9 +48,17 @@ pub fn focus_session(session_id: String) -> Result<(), String> {
     end repeat
     activate
 end tell"#,
-            tty
-        )
-    } else {
+                tty
+            );
+            Command::new("osascript")
+                .args(["-e", &focus_script])
+                .spawn()
+                .map_err(|e| format!("Failed to focus terminal: {}", e))?;
+        }
+        // If switch_client failed (stale client), fall through to open a new tab
+    }
+
+    if needs_new_tab {
         // Resolve tmux absolute path (iTerm2's `command` doesn't use $PATH)
         let tmux_path = Command::new("which")
             .arg("tmux")
@@ -60,7 +72,7 @@ end tell"#,
 
         // No client attached — open a new tab in the current iTerm2 window
         // (or create a window if none exists)
-        format!(
+        let attach_script = format!(
             r#"tell application "iTerm2"
     if (count of windows) is 0 then
         set newWindow to (create window with default profile command "{tmux} attach-session -t \"{sess}\"")
@@ -76,13 +88,12 @@ end tell"#,
     activate
 end tell"#,
             tmux = tmux_path, sess = session_name
-        )
-    };
-
-    Command::new("osascript")
-        .args(["-e", &script])
-        .spawn()
-        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+        );
+        Command::new("osascript")
+            .args(["-e", &attach_script])
+            .spawn()
+            .map_err(|e| format!("Failed to open terminal: {}", e))?;
+    }
 
     Ok(())
 }

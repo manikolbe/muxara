@@ -322,6 +322,26 @@ pub fn list_client_tty(session_name: &str) -> Option<String> {
         })
 }
 
+/// Return the TTY of the first connected tmux client (any session), if any.
+pub fn list_any_client_tty() -> Option<String> {
+    run_tmux(&["list-clients", "-F", "#{client_tty}"])
+        .ok()
+        .and_then(|output| {
+            output
+                .trim()
+                .lines()
+                .next()
+                .filter(|l| !l.is_empty())
+                .map(|l| l.to_string())
+        })
+}
+
+/// Switch an existing tmux client (identified by TTY) to a different session.
+pub fn switch_client(client_tty: &str, session_name: &str) -> Result<(), TmuxError> {
+    run_tmux(&["switch-client", "-c", client_tty, "-t", session_name])?;
+    Ok(())
+}
+
 /// Get the full process table once and return it for reuse across panes.
 pub fn get_process_table() -> String {
     Command::new("ps")
