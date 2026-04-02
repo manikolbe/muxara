@@ -4,6 +4,7 @@ use std::sync::Mutex;
 
 use tauri::State;
 
+use crate::preferences::{ConfigDir, Preferences};
 use crate::session::Session;
 use crate::store::SessionStore;
 use crate::tmux::client;
@@ -62,14 +63,14 @@ end tell"#,
         format!(
             r#"tell application "iTerm2"
     if (count of windows) is 0 then
-        set newWindow to (create window with default profile command "{tmux} attach -t {sess}")
+        set newWindow to (create window with default profile command "{tmux} attach-session -t \"{sess}\"")
         tell newWindow
             set columns of current session of current tab to 200
             set rows of current session of current tab to 50
         end tell
     else
         tell current window
-            create tab with default profile command "{tmux} attach -t {sess}"
+            create tab with default profile command "{tmux} attach-session -t \"{sess}\""
         end tell
     end if
     activate
@@ -137,14 +138,22 @@ pub fn rename_session(session_id: String, new_name: String, store: State<'_, Mut
 }
 
 #[tauri::command]
-pub fn get_sessions(store: State<'_, Mutex<SessionStore>>) -> Vec<Session> {
+pub fn get_sessions(
+    store: State<'_, Mutex<SessionStore>>,
+    prefs: State<'_, Mutex<Preferences>>,
+) -> Vec<Session> {
+    let (output_lines, cooloff_secs) = {
+        let p = prefs.lock().unwrap();
+        (p.output_lines, p.cooloff_minutes * 60.0)
+    };
+
     let tmux_alive = client::is_tmux_alive();
 
     if !tmux_alive {
         // Try to start the server; if it fails, return empty
         if client::ensure_server().is_err() {
             let mut store = store.lock().unwrap();
-            store.reconcile(&[], &HashMap::new(), &HashMap::new(), false);
+            store.reconcile(&[], &HashMap::new(), &HashMap::new(), false, output_lines, cooloff_secs);
             return store.to_sessions();
         }
     }
@@ -166,6 +175,23 @@ pub fn get_sessions(store: State<'_, Mutex<SessionStore>>) -> Vec<Session> {
     }
 
     let mut store = store.lock().unwrap();
-    store.reconcile(&panes, &captures, &claude_status, true);
+    store.reconcile(&panes, &captures, &claude_status, true, output_lines, cooloff_secs);
     store.to_sessions()
+}
+
+#[tauri::command]
+pub fn get_preferences(prefs: State<'_, Mutex<Preferences>>) -> Preferences {
+    prefs.lock().unwrap().clone()
+}
+
+#[tauri::command]
+pub fn set_preferences(
+    new_prefs: Preferences,
+    prefs: State<'_, Mutex<Preferences>>,
+    config_dir: State<'_, ConfigDir>,
+) -> Result<(), String> {
+    new_prefs.validate()?;
+    new_prefs.save(&config_dir.0)?;
+    *prefs.lock().unwrap() = new_prefs;
+    Ok(())
 }

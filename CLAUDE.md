@@ -14,6 +14,10 @@ Tauri v2 desktop app: Rust backend + React/TypeScript/Tailwind frontend.
 
 See `docs/architecture.md` for the full architecture reference including project structure, module responsibilities, data flow, key patterns, and testing strategy.
 
+## Platform Support
+
+macOS only. The terminal integration uses AppleScript to control iTerm2 (`focus_session` in `commands.rs`), and preferences persist to `~/Library/Application Support/`. Supporting other platforms would require abstracting the terminal launch layer and testing platform-specific paths.
+
 ## Design Constraints
 
 - Optimized for single-monitor setups — compact, always-on-top window that doesn't dominate screen space
@@ -50,8 +54,10 @@ Every ticket must include documentation updates alongside code changes. This kee
 
 ## Current State
 
-The Tauri scaffold is in place (ticket #4), the tmux integration layer is implemented (ticket #5), the state classifier is wired up (ticket #6), the frontend is connected to live backend data (ticket #7), and session cards use the two-zone layout with status indicators (ticket #8). The Rust backend can discover tmux sessions, capture pane output with ANSI stripping, detect running Claude processes, classify session state (NeedsInput, Working, Idle, Errored, Unknown), and maintain an in-memory session store that reconciles with live tmux state. The classifier uses regex-based pattern matching on pane output with temporal delta detection and Working→Idle debounce to prevent flicker. The frontend polls the backend every 1.5s via a `useSessions` hook and renders live session data with loading, error, and empty states. Session cards display an orientation zone (status dot, title, working directory, state + recency) and a context zone (last terminal output lines), with NeedsInput sessions sorted to the top.
+The Tauri scaffold is in place (ticket #4), the tmux integration layer is implemented (ticket #5), the state classifier is wired up (ticket #6), the frontend is connected to live backend data (ticket #7), and session cards use the two-zone layout with status indicators (ticket #8). The Rust backend can discover tmux sessions, capture pane output with ANSI stripping, detect running Claude processes, classify session state (NeedsInput, Working, Idle, Errored, Unknown), and maintain an in-memory session store that reconciles with live tmux state. The classifier uses regex-based pattern matching on pane output with temporal delta detection and Working→Idle debounce to prevent flicker. The frontend polls the backend at a configurable interval (default 1.5s) via a `useSessions` hook and renders live session data with loading, error, and empty states. Session cards display an orientation zone (status dot, title, working directory, state + recency) and a context zone (last terminal output lines), with NeedsInput sessions sorted to the top.
 
-Clicking a session card opens a new iTerm2 window attached to that tmux session (ticket #9). A "+" button in the header creates new Claude Code sessions with an optional name and working directory (ticket #10). Right-clicking a session card opens a context menu with Rename and Kill actions (ticket #11). Kill shows a confirmation dialog before terminating the tmux session. Rename replaces the title with an inline text input.
+Clicking a session card opens a new iTerm2 window attached to that tmux session (ticket #9). The last-focused card is visually distinguished with a 3D lifted effect (translate + scale + emerald glow), keeping the state-colored left border free for session state. A "+" button in the header creates new Claude Code sessions with an optional name and working directory (ticket #10). Right-clicking a session card opens a context menu with Rename and Kill actions (ticket #11). Kill shows a confirmation dialog before terminating the tmux session. Rename replaces the title with an inline text input.
+
+User preferences are configurable via a VS Code-style settings panel (ticket #25). Settings are persisted to a JSON file in the app config directory and take effect immediately. Configurable values include poll interval, scroll pause duration, grid columns, context zone height, output lines per card, idle/unknown output visibility, and the Working→Idle cool-off period. The settings UI is schema-driven — adding a new setting requires only a field in the Preferences struct and a schema entry.
 
 **Not yet implemented:** attention signals.

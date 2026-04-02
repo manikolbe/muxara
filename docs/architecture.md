@@ -9,6 +9,10 @@ This document covers the full architecture of Muxara — a Tauri v2 desktop app 
 - **Backend**: Rust (Tauri commands invoked from the frontend via `@tauri-apps/api`)
 - **Session layer**: tmux (managed by the backend, hidden from the user)
 
+## Platform Support
+
+macOS only. The terminal integration layer (`commands.rs: focus_session`) uses AppleScript (`osascript`) to control iTerm2 windows — there is no abstraction for other terminal emulators or platforms. Preferences persist to `~/Library/Application Support/com.muxara.app/` via Tauri's `app_config_dir()`. The tmux and process-detection layers (`tmux/client.rs`) use POSIX commands (`ps -ax`, process tree walking) that would work on Linux but have not been tested there.
+
 ## Project Structure
 
 ```
@@ -16,20 +20,24 @@ muxara/
 ├── src/                         Frontend (React + TypeScript)
 │   ├── main.tsx                 React entry point, mounts App
 │   ├── App.tsx                  Root component — uses useSessions hook, renders SessionGrid
-│   ├── types.ts                 Shared TypeScript types (Session, SessionState, RuntimeState)
+│   ├── types.ts                 Shared TypeScript types (Session, SessionState, Preferences, SettingDefinition)
+│   ├── settingsSchema.ts        Settings schema: definitions, defaults, categories for the settings UI
 │   ├── styles.css               Tailwind base styles
 │   ├── hooks/
-│   │   └── useSessions.ts       Polling hook — calls get_sessions every 1.5s, returns sessions/loading/error
+│   │   ├── useSessions.ts       Polling hook — calls get_sessions at configurable interval
+│   │   └── usePreferences.tsx   PreferencesContext + provider + hook for user-configurable settings
 │   └── components/
 │       ├── SessionGrid.tsx      Grid layout for session cards, handles loading/error/empty states
 │       ├── SessionCard.tsx      Two-zone card: orientation (status, title, dir, recency) + context (output)
 │       ├── StatusBadge.tsx      Colored status dot per session state
-│       └── NewSessionButton.tsx "+" button to create new Claude Code sessions
+│       ├── NewSessionButton.tsx "+" button to create new Claude Code sessions
+│       └── SettingsPanel.tsx    VS Code-style settings modal with category sidebar
 ├── src-tauri/                   Backend (Rust)
 │   ├── src/
 │   │   ├── main.rs              Entry point, delegates to lib.rs
 │   │   ├── lib.rs               Tauri app builder, module registration, managed state
 │   │   ├── commands.rs          Tauri command handlers (invoked from frontend)
+│   │   ├── preferences.rs       User preferences — struct, validation, JSON persistence
 │   │   ├── session.rs           Frontend-facing data model (Session, SessionState, RuntimeState)
 │   │   ├── store.rs             In-memory session store with reconciliation logic
 │   │   └── tmux/
@@ -50,13 +58,13 @@ The frontend is a React SPA bundled by Vite and rendered inside the Tauri webvie
 
 ### Polling hook (`src/hooks/useSessions.ts`)
 
-`useSessions()` encapsulates the polling loop. It calls `invoke<Session[]>("get_sessions")` every 1.5 seconds and returns `{ sessions, loading, error }`. Loading is `true` only until the first successful or failed fetch. The `active` flag and `clearInterval` cleanup prevent state updates after unmount. `App.tsx` consumes this hook and passes the result to `SessionGrid`.
+`useSessions()` encapsulates the polling loop. It calls `invoke<Session[]>("get_sessions")` at the user-configured poll interval (default 1.5s) and returns `{ sessions, loading, error, onScrollActivity }`. Loading is `true` only until the first successful or failed fetch. The `active` flag and `clearInterval` cleanup prevent state updates after unmount. Both the poll interval and scroll pause duration are read from the `PreferencesContext` and trigger effect re-creation when changed. `App.tsx` consumes this hook and passes the result to `SessionGrid`.
 
 ### Components
 
 - **`SessionGrid`** — renders a responsive CSS grid (`1 / 2 / 3` columns at sm/lg breakpoints) of `SessionCard` components. Handles three non-data states: loading (shown during first fetch), error (shown when the backend call fails), and empty (no sessions exist). NeedsInput sessions appear first (sorting is handled by the backend).
 - **`SessionCard`** — two-zone card layout, clickable to focus the session:
-  - **Click handler**: calls `invoke("focus_session", { sessionId })` to open a Terminal.app window attached to the tmux session. Brief scale-down + brightness animation on click.
+  - **Click handler**: calls `invoke("focus_session", { sessionId })` to open an iTerm2 window attached to the tmux session. Brief scale-down + brightness animation on click. The last-focused card is tracked in `Dashboard` state and displayed with a 3D "lifted" effect (translate, scale, emerald glow shadow) to distinguish it from other cards — separate from the state-colored left border which continues to indicate session state.
   - **Context menu** (right-click): shows a dropdown with Rename and Kill Session actions. Kill shows a confirmation dialog before calling `invoke("kill_session", { sessionId })`. Rename replaces the session title with an inline text input that submits on Enter/blur and cancels on Escape, calling `invoke("rename_session", { sessionId, newName })`.
   - **Orientation zone** (top): status dot (`StatusBadge`), session title (or inline rename input), abbreviated working directory, state label + recency (e.g. "Working · 2m ago"). NeedsInput cards additionally show the input type (Permission / Question).
   - **Context zone** (bottom, separated by a subtle divider): last terminal output lines in monospace.
@@ -154,7 +162,7 @@ get_sessions (Tauri command)
   │   └── hash_output()
   │
   ▼
-SessionStore::reconcile(panes, captures, claude_status, tmux_alive)
+SessionStore::reconcile(panes, captures, claude_status, tmux_alive, output_lines, cooloff_secs)
   │
   ├── per pane: classifier::classify(output, hash, previous_state, timing)
   │   └── returns SessionState + NeedsInputType + isInPlanMode
@@ -169,6 +177,7 @@ SessionStore::to_sessions() → Vec<Session> → frontend
 - **Single `ps -ax` per poll:** The process table is fetched once per poll cycle, then each pane's `claude` status is checked from the parsed table. This is O(n) in process count, done once — not O(panes * processes).
 - **`Mutex<SessionStore>` managed state:** The session store persists across poll cycles via Tauri's `.manage()`. A `Mutex` (not `RwLock`) is used because every access both reads and writes.
 - **Graceful degradation:** If tmux is not installed or the server isn't running, the system returns an empty session list rather than erroring.
+- **Schema-driven settings UI:** Settings are declared once in `settingsSchema.ts` as `SettingDefinition[]` entries. The `SettingsPanel` renders them generically from the schema — adding a new setting requires no component changes.
 
 ## Testing Strategy
 
@@ -212,6 +221,44 @@ Determines a session's state from its pane output and temporal context. Ported f
 **Classification focus:** Only the last 50 lines of output are checked for most patterns (the "tail"), since the most recent state is at the bottom. Shell-level errors and plan mode transitions are checked against full output.
 
 **Integration:** The classifier runs during `SessionStore::reconcile()` for each pane that has captured output. The store tracks `consecutive_idle_count` per session to support debounce.
+
+## User Preferences (ticket #25)
+
+### `preferences.rs` — persistence and validation
+
+The `Preferences` struct holds all user-configurable settings, serialized to/from a JSON file in the Tauri app config directory (`~/Library/Application Support/com.muxara.app/preferences.json` on macOS). On first launch, defaults are used in-memory; the file is created when the user first saves settings.
+
+**Settings:**
+
+| Setting | Field | Default | Range |
+|---|---|---|---|
+| Working→Idle cool-off | `cooloff_minutes` | 5.0 | 0–60 min |
+| Poll interval | `poll_interval_secs` | 1.5 | 0.5–30 s |
+| Output lines per card | `output_lines` | 20 | 1–200 |
+| Show idle/unknown output | `show_idle_output` | false | — |
+| Context zone max height | `context_zone_max_height` | 192 | 48–800 px |
+| Grid columns | `grid_columns` | 2 | 1–6 |
+| Scroll pause duration | `scroll_pause_secs` | 5.0 | 0–60 s |
+
+`validate()` checks ranges and returns a user-friendly error string. `load()` gracefully falls back to defaults on missing or corrupt files. `save()` creates the config directory if needed and writes pretty-printed JSON.
+
+### Backend wiring
+
+`Preferences` is registered as `Mutex<Preferences>` managed state in `lib.rs` via a `setup()` closure (since `app_config_dir()` requires the app handle). A `ConfigDir` newtype wraps the config directory path to avoid `State` ambiguity.
+
+Two Tauri commands — `get_preferences` and `set_preferences` — expose read/write access. `set_preferences` validates before persisting. The `get_sessions` command reads `cooloff_minutes` and `output_lines` from preferences and passes them as parameters to `store.reconcile()`, which forwards `cooloff_secs` to the classifier via `ClassifierInput`.
+
+### Frontend wiring
+
+A `PreferencesContext` (in `usePreferences.tsx`) loads preferences on startup and exposes `prefs` + `updatePrefs`. `App.tsx` wraps the dashboard in `<PreferencesProvider>`. Consumer components read preferences via the `usePreferences()` hook:
+
+- `useSessions.ts` — poll interval and scroll pause duration
+- `SessionGrid.tsx` — grid column count (static Tailwind class lookup)
+- `SessionCard.tsx` — context zone max height (inline style) and idle/unknown output visibility
+
+### Settings UI
+
+The settings panel (`SettingsPanel.tsx`) is a VS Code-style modal with a category sidebar and a schema-driven content area. Settings are declared in `settingsSchema.ts` as `SettingDefinition[]` entries with label, description, type, default, validation ranges, and category. A generic renderer maps each definition to the appropriate input control (number, boolean toggle, or select dropdown). Adding a new setting requires only adding a field to the `Preferences` struct/type and a schema entry — no component changes.
 
 ## Spike Reference
 

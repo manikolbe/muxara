@@ -1,9 +1,14 @@
+import { useState } from "react";
 import { useSessions } from "./hooks/useSessions";
+import { PreferencesProvider } from "./hooks/usePreferences";
 import { SessionGrid } from "./components/SessionGrid";
 import { NewSessionButton } from "./components/NewSessionButton";
+import { SettingsPanel } from "./components/SettingsPanel";
 
-function App() {
+function Dashboard() {
   const { sessions, loading, error, onScrollActivity } = useSessions();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
 
   return (
     <div className="h-screen bg-gray-950 text-gray-100 flex flex-col overflow-hidden">
@@ -28,12 +33,39 @@ function App() {
           </svg>
           <span className="text-sm font-semibold text-gray-300 uppercase tracking-[0.2em]">Muxara</span>
         </div>
-        <NewSessionButton />
+        <div data-tauri-drag-region className="flex items-center gap-1.5">
+          <NewSessionButton />
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
+            title="Settings"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M6.5 1.5h3l.4 1.6.9.4 1.5-.7 2.1 2.1-.7 1.5.4.9 1.6.4v3l-1.6.4-.4.9.7 1.5-2.1 2.1-1.5-.7-.9.4-.4 1.6h-3l-.4-1.6-.9-.4-1.5.7-2.1-2.1.7-1.5-.4-.9L1.3 9.5v-3l1.6-.4.4-.9-.7-1.5 2.1-2.1 1.5.7.9-.4.4-1.6z"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinejoin="round"
+              />
+              <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
-        <SessionGrid sessions={sessions} loading={loading} error={error} onScrollActivity={onScrollActivity} />
+      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-4">
+        <SessionGrid sessions={sessions} loading={loading} error={error} onScrollActivity={onScrollActivity} focusedSessionId={focusedSessionId} onFocusSession={setFocusedSessionId} />
       </div>
+
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <PreferencesProvider>
+      <Dashboard />
+    </PreferencesProvider>
   );
 }
 

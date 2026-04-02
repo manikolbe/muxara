@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Session } from "../types";
-
-const POLL_INTERVAL_MS = 1500;
-const SCROLL_PAUSE_MS = 5000;
+import { usePreferences } from "./usePreferences";
 
 interface UseSessionsResult {
   sessions: Session[];
@@ -13,15 +11,20 @@ interface UseSessionsResult {
 }
 
 export function useSessions(): UseSessionsResult {
+  const { prefs } = usePreferences();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasFetched = useRef(false);
   const pausedUntil = useRef(0);
 
+  const scrollPauseMs = prefs.scrollPauseSecs * 1000;
+
   const onScrollActivity = useCallback(() => {
-    pausedUntil.current = Date.now() + SCROLL_PAUSE_MS;
-  }, []);
+    pausedUntil.current = Date.now() + scrollPauseMs;
+  }, [scrollPauseMs]);
+
+  const pollIntervalMs = prefs.pollIntervalSecs * 1000;
 
   useEffect(() => {
     let active = true;
@@ -45,13 +48,13 @@ export function useSessions(): UseSessionsResult {
     };
 
     fetchSessions();
-    const interval = setInterval(fetchSessions, POLL_INTERVAL_MS);
+    const interval = setInterval(fetchSessions, pollIntervalMs);
 
     return () => {
       active = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [pollIntervalMs]);
 
   return { sessions, loading, error, onScrollActivity };
 }

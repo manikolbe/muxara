@@ -9,8 +9,8 @@ const CLASSIFY_TAIL_LINES: usize = 50;
 /// How recently output must have changed (in seconds) to be considered "working".
 const WORKING_THRESHOLD_SECS: f64 = 5.0;
 
-/// Minimum seconds of no output change before transitioning from Working → Idle.
-pub const WORKING_IDLE_COOLOFF_SECS: f64 = 300.0;
+/// Default minimum seconds of no output change before transitioning from Working → Idle.
+const DEFAULT_COOLOFF_SECS: f64 = 300.0;
 
 // ---------------------------------------------------------------------------
 // Regex patterns (compiled once)
@@ -68,6 +68,7 @@ pub struct ClassifierInput<'a> {
     pub previous_state: Option<&'a SessionState>,
     pub seconds_since_last_change: f64,
     pub consecutive_idle_count: u32,
+    pub cooloff_secs: f64,
 }
 
 pub struct ClassifierResult {
@@ -192,7 +193,7 @@ pub fn classify(input: &ClassifierInput) -> ClassifierResult {
     } else if working {
         SessionState::Working
     } else if matches!(input.previous_state, Some(SessionState::Working))
-        && input.seconds_since_last_change < WORKING_IDLE_COOLOFF_SECS
+        && input.seconds_since_last_change < input.cooloff_secs
     {
         // Cool-off: hold Working state until output has been unchanged for 5 minutes
         debounce_applied = true;
@@ -231,6 +232,7 @@ mod tests {
             previous_state: None,
             seconds_since_last_change: 0.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         }
     }
 
@@ -369,6 +371,7 @@ mod tests {
             previous_state: None,
             seconds_since_last_change: 1.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         };
         assert!(detect_working(&input));
     }
@@ -382,6 +385,7 @@ mod tests {
             previous_state: None,
             seconds_since_last_change: 1.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         };
         assert!(!detect_working(&input));
     }
@@ -395,6 +399,7 @@ mod tests {
             previous_state: None,
             seconds_since_last_change: 10.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         };
         assert!(!detect_working(&input));
     }
@@ -408,6 +413,7 @@ mod tests {
             previous_state: None,
             seconds_since_last_change: 0.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         };
         assert!(!detect_working(&input));
     }
@@ -424,6 +430,7 @@ mod tests {
             previous_state: Some(&SessionState::Working),
             seconds_since_last_change: 1.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         };
         let result = classify(&input);
         assert!(matches!(result.state, SessionState::NeedsInput));
@@ -439,6 +446,7 @@ mod tests {
             previous_state: None,
             seconds_since_last_change: 1.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         };
         let result = classify(&input);
         assert!(matches!(result.state, SessionState::Errored));
@@ -453,6 +461,7 @@ mod tests {
             previous_state: None,
             seconds_since_last_change: 2.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         };
         let result = classify(&input);
         assert!(matches!(result.state, SessionState::Working));
@@ -467,6 +476,7 @@ mod tests {
             previous_state: None,
             seconds_since_last_change: 30.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         };
         let result = classify(&input);
         assert!(matches!(result.state, SessionState::Idle));
@@ -481,6 +491,7 @@ mod tests {
             previous_state: None,
             seconds_since_last_change: 30.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         };
         let result = classify(&input);
         assert!(matches!(result.state, SessionState::Unknown));
@@ -496,6 +507,7 @@ mod tests {
             previous_state: Some(&SessionState::Working),
             seconds_since_last_change: 60.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         };
         let result = classify(&input);
         assert!(matches!(result.state, SessionState::Working));
@@ -512,6 +524,7 @@ mod tests {
             previous_state: Some(&SessionState::Working),
             seconds_since_last_change: 301.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         };
         let result = classify(&input);
         assert!(matches!(result.state, SessionState::Idle));
@@ -527,6 +540,7 @@ mod tests {
             previous_state: None,
             seconds_since_last_change: 0.0,
             consecutive_idle_count: 0,
+            cooloff_secs: DEFAULT_COOLOFF_SECS,
         };
         let result = classify(&input);
         assert!(matches!(result.state, SessionState::NeedsInput));

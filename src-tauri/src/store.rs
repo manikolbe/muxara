@@ -6,7 +6,8 @@ use crate::session::{NeedsInputType, RuntimeState, Session, SessionState};
 use crate::tmux::classifier::{self, ClassifierInput};
 use crate::tmux::client::{CapturedPane, TmuxPaneInfo};
 
-const LAST_OUTPUT_TAIL_LINES: usize = 20;
+const DEFAULT_OUTPUT_TAIL_LINES: usize = 20;
+const DEFAULT_COOLOFF_SECS: f64 = 300.0;
 
 fn state_priority(state: &SessionState) -> u8 {
     match state {
@@ -57,6 +58,8 @@ impl SessionStore {
         captures: &HashMap<String, CapturedPane>,
         claude_status: &HashMap<String, bool>,
         tmux_alive: bool,
+        output_tail_lines: usize,
+        cooloff_secs: f64,
     ) {
         let now = Utc::now();
         let mut seen_targets: Vec<String> = Vec::new();
@@ -113,7 +116,7 @@ impl SessionStore {
                         .normalized_output
                         .lines()
                         .rev()
-                        .take(LAST_OUTPUT_TAIL_LINES)
+                        .take(output_tail_lines)
                         .map(|l| l.to_string())
                         .collect::<Vec<_>>()
                         .into_iter()
@@ -138,6 +141,7 @@ impl SessionStore {
                     previous_state: Some(&session.state),
                     seconds_since_last_change: seconds_since_change,
                     consecutive_idle_count: session.consecutive_idle_count,
+                    cooloff_secs,
                 };
                 let result = classifier::classify(&classifier_input);
 
@@ -265,7 +269,7 @@ mod tests {
         let mut claude_status = HashMap::new();
         claude_status.insert("sess1:0.0".to_string(), true);
 
-        store.reconcile(&panes, &captures, &claude_status, true);
+        store.reconcile(&panes, &captures, &claude_status, true, DEFAULT_OUTPUT_TAIL_LINES, DEFAULT_COOLOFF_SECS);
 
         assert_eq!(store.sessions.len(), 1);
         let session = &store.sessions["sess1:0.0"];
@@ -286,7 +290,7 @@ mod tests {
             "sess1:0.0".to_string(),
             make_capture("sess1:0.0", "first output", "hash1"),
         );
-        store.reconcile(&panes, &captures, &HashMap::new(), true);
+        store.reconcile(&panes, &captures, &HashMap::new(), true, DEFAULT_OUTPUT_TAIL_LINES, DEFAULT_COOLOFF_SECS);
         let first_changed = store.sessions["sess1:0.0"].last_changed_at;
 
         // Second reconcile with different hash
@@ -295,7 +299,7 @@ mod tests {
             "sess1:0.0".to_string(),
             make_capture("sess1:0.0", "second output", "hash2"),
         );
-        store.reconcile(&panes, &captures2, &HashMap::new(), true);
+        store.reconcile(&panes, &captures2, &HashMap::new(), true, DEFAULT_OUTPUT_TAIL_LINES, DEFAULT_COOLOFF_SECS);
         let second_changed = store.sessions["sess1:0.0"].last_changed_at;
 
         assert!(second_changed >= first_changed);
@@ -311,11 +315,11 @@ mod tests {
 
         // Add a session
         let panes = vec![make_pane("sess1", 0, 0, 1234, "/tmp")];
-        store.reconcile(&panes, &HashMap::new(), &HashMap::new(), true);
+        store.reconcile(&panes, &HashMap::new(), &HashMap::new(), true, DEFAULT_OUTPUT_TAIL_LINES, DEFAULT_COOLOFF_SECS);
         assert_eq!(store.sessions.len(), 1);
 
         // Reconcile with empty panes
-        store.reconcile(&[], &HashMap::new(), &HashMap::new(), true);
+        store.reconcile(&[], &HashMap::new(), &HashMap::new(), true, DEFAULT_OUTPUT_TAIL_LINES, DEFAULT_COOLOFF_SECS);
         assert_eq!(store.sessions.len(), 0);
     }
 
@@ -324,10 +328,10 @@ mod tests {
         let mut store = SessionStore::new();
         let panes = vec![make_pane("sess1", 0, 0, 1234, "/tmp")];
 
-        store.reconcile(&panes, &HashMap::new(), &HashMap::new(), true);
+        store.reconcile(&panes, &HashMap::new(), &HashMap::new(), true, DEFAULT_OUTPUT_TAIL_LINES, DEFAULT_COOLOFF_SECS);
         let created = store.sessions["sess1:0.0"].created_at;
 
-        store.reconcile(&panes, &HashMap::new(), &HashMap::new(), true);
+        store.reconcile(&panes, &HashMap::new(), &HashMap::new(), true, DEFAULT_OUTPUT_TAIL_LINES, DEFAULT_COOLOFF_SECS);
         assert_eq!(store.sessions["sess1:0.0"].created_at, created);
     }
 
@@ -340,7 +344,7 @@ mod tests {
             "sess1:0.0".to_string(),
             make_capture("sess1:0.0", "output line", "hash1"),
         );
-        store.reconcile(&panes, &captures, &HashMap::new(), true);
+        store.reconcile(&panes, &captures, &HashMap::new(), true, DEFAULT_OUTPUT_TAIL_LINES, DEFAULT_COOLOFF_SECS);
 
         let sessions = store.to_sessions();
         assert_eq!(sessions.len(), 1);
@@ -359,11 +363,11 @@ mod tests {
         let mut store = SessionStore::new();
         // First add a session with tmux alive
         let panes = vec![make_pane("sess1", 0, 0, 1234, "/tmp")];
-        store.reconcile(&panes, &HashMap::new(), &HashMap::new(), true);
+        store.reconcile(&panes, &HashMap::new(), &HashMap::new(), true, DEFAULT_OUTPUT_TAIL_LINES, DEFAULT_COOLOFF_SECS);
         assert!(store.sessions["sess1:0.0"].tmux_alive);
 
         // Reconcile with no panes and tmux_alive=false prunes all sessions
-        store.reconcile(&[], &HashMap::new(), &HashMap::new(), false);
+        store.reconcile(&[], &HashMap::new(), &HashMap::new(), false, DEFAULT_OUTPUT_TAIL_LINES, DEFAULT_COOLOFF_SECS);
         assert_eq!(store.sessions.len(), 0);
     }
 }

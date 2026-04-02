@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Session, SessionState } from "../types";
 import { StatusBadge } from "./StatusBadge";
+import { usePreferences } from "../hooks/usePreferences";
 
 const stateConfig: Record<
   SessionState,
@@ -61,7 +62,8 @@ function stateLabel(session: Session): string {
   return config.label;
 }
 
-export function SessionCard({ session, onScrollActivity }: { session: Session; onScrollActivity: () => void }) {
+export function SessionCard({ session, onScrollActivity, focused, onFocus }: { session: Session; onScrollActivity: () => void; focused: boolean; onFocus: (id: string) => void }) {
+  const { prefs } = usePreferences();
   const config = stateConfig[session.state];
   const [clicking, setClicking] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -94,6 +96,7 @@ export function SessionCard({ session, onScrollActivity }: { session: Session; o
   async function handleClick() {
     if (renaming) return;
     setClicking(true);
+    onFocus(session.id);
     try {
       await invoke("focus_session", { sessionId: session.id });
     } catch (err) {
@@ -137,7 +140,9 @@ export function SessionCard({ session, onScrollActivity }: { session: Session; o
         onContextMenu={handleContextMenu}
         className={`flex flex-col rounded-lg border-l-4 cursor-pointer transition-all duration-150 ${
           clicking ? "scale-[0.97] brightness-125" : "hover:brightness-110"
-        } ${config.border} ${config.bg} shadow-md`}
+        } ${config.border} ${config.bg} ${
+          focused ? "ring-1 ring-emerald-400/40 shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_20px_rgba(52,211,153,0.2)] -translate-y-1 scale-[1.02] brightness-[1.15]" : "shadow-md"
+        }`}
       >
         {/* ── Orientation zone ── */}
         <div className="px-3 pt-3 pb-2">
@@ -177,9 +182,8 @@ export function SessionCard({ session, onScrollActivity }: { session: Session; o
 
         {/* ── Context zone ── */}
         {session.lastOutputLines.length > 0 &&
-          session.state !== "idle" &&
-          session.state !== "unknown" && (
-          <div className="border-t border-gray-700/50 px-3 py-2 mt-auto max-h-48 overflow-y-auto" onScroll={onScrollActivity}>
+          (prefs.showIdleOutput || (session.state !== "idle" && session.state !== "unknown")) && (
+          <div className="border-t border-gray-700/50 px-3 py-2 mt-auto overflow-y-auto" style={{ maxHeight: prefs.contextZoneMaxHeight }} onScroll={onScrollActivity}>
             {session.lastOutputLines.map((line, i) => (
               <p
                 key={i}
