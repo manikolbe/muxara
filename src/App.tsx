@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useSessions } from "./hooks/useSessions";
 import { PreferencesProvider } from "./hooks/usePreferences";
 import { SessionGrid } from "./components/SessionGrid";
@@ -10,14 +11,24 @@ function Dashboard() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
 
+  const handleTitleBarDrag = useCallback((e: React.MouseEvent) => {
+    // Only initiate drag if the mousedown target is the drag region itself,
+    // not an interactive child (button, input, etc.)
+    const target = e.target as HTMLElement;
+    if (target.closest("button, input, a, select")) return;
+    e.preventDefault();
+    getCurrentWindow().startDragging();
+  }, []);
+
   return (
     <div className="h-screen bg-gray-950 text-gray-100 flex flex-col overflow-hidden">
       {/* Custom title bar — draggable, sits in the overlay zone */}
       <div
         data-tauri-drag-region
+        onMouseDown={handleTitleBarDrag}
         className="flex items-center justify-between pl-[78px] pr-4 pt-2 pb-1 shrink-0"
       >
-        <div data-tauri-drag-region className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5">
           <svg
             width="16"
             height="16"
@@ -33,7 +44,7 @@ function Dashboard() {
           </svg>
           <span className="text-sm font-semibold text-gray-300 uppercase tracking-[0.2em]">Muxara</span>
         </div>
-        <div data-tauri-drag-region className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5">
           <NewSessionButton />
           <button
             onClick={() => setSettingsOpen(true)}
