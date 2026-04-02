@@ -11,27 +11,27 @@ const stateConfig: Record<
   "needs-input": {
     label: "Needs Input",
     border: "border-l-amber-400",
-    bg: "bg-amber-950/40",
+    bg: "bg-amber-950/20",
   },
   working: {
     label: "Working",
     border: "border-l-blue-400",
-    bg: "bg-blue-950/30",
+    bg: "bg-blue-950/15",
   },
   idle: {
     label: "Idle",
     border: "border-l-gray-600",
-    bg: "bg-gray-800/50",
+    bg: "bg-gray-800/30",
   },
   errored: {
     label: "Errored",
     border: "border-l-red-400",
-    bg: "bg-red-950/30",
+    bg: "bg-red-950/15",
   },
   unknown: {
     label: "Unknown",
     border: "border-l-gray-500 border-dashed",
-    bg: "bg-gray-800/30",
+    bg: "bg-gray-800/20",
   },
 };
 
@@ -143,7 +143,7 @@ export function SessionCard({ session, onScrollActivity, focused, onFocus }: { s
         className={`flex flex-col rounded-lg cursor-pointer transition-all duration-150 ${
           clicking ? "scale-[0.97] brightness-125" : "hover:brightness-110"
         } ${config.border} ${config.bg} ${
-          focused ? "border-l-[6px] !border-l-emerald-400 ring-1 ring-emerald-400/40 shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_20px_rgba(52,211,153,0.2)] -translate-y-1 scale-[1.02] brightness-[1.15]" : "border-l-2 shadow-md"
+          focused ? "border-l-[6px] !border-l-emerald-400 ring-1 ring-emerald-400/40 shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_20px_rgba(52,211,153,0.2)] -translate-y-1" : "border-l-2 shadow-md"
         } ${
           clicking ? "focused-glow" : ""
         }`}
@@ -166,7 +166,7 @@ export function SessionCard({ session, onScrollActivity, focused, onFocus }: { s
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <h3 className="font-semibold text-sm text-gray-100 truncate">
+              <h3 className="font-semibold text-base text-gray-100 truncate">
                 {session.name}
               </h3>
             )}
@@ -180,14 +180,14 @@ export function SessionCard({ session, onScrollActivity, focused, onFocus }: { s
             : dirBasename(session.workingDirectory)}
         </p>
         {session.gitBranch && (
-          <p className="text-[11px] text-gray-500 truncate mb-1">
-            <span className="text-gray-600">branch:</span> {session.gitBranch}
+          <p className="text-[11px] text-gray-400 truncate mb-1">
+            <span className="text-gray-400">branch:</span> {session.gitBranch}
             {session.isWorktree && (
               <span className="ml-1.5 text-[10px] text-violet-400/70 font-medium">WT</span>
             )}
           </p>
         )}
-        <p className="text-[11px] text-gray-500">
+        <p className="text-xs text-gray-400">
           {stateLabel(session)} · {timeAgo(session.lastChangedAt)}
         </p>
       </div>
@@ -195,15 +195,18 @@ export function SessionCard({ session, onScrollActivity, focused, onFocus }: { s
         {/* ── Context zone ── */}
         {session.lastOutputLines.length > 0 &&
           (prefs.showIdleOutput || (session.state !== "idle" && session.state !== "unknown")) && (
-          <div className="border-t border-gray-700/50 px-3 py-2 mt-auto overflow-y-auto" style={{ maxHeight: prefs.contextZoneMaxHeight }} onScroll={onScrollActivity}>
-            {session.lastOutputLines.map((line, i) => (
-              <p
-                key={i}
-                className="text-[11px] leading-4 font-mono text-gray-400 truncate"
-              >
-                {line || "\u00A0"}
-              </p>
-            ))}
+          <div className="relative border-t border-gray-700/50 mt-auto">
+            <div className="px-3 py-2 overflow-y-auto" style={{ maxHeight: prefs.contextZoneMaxHeight }} onScroll={onScrollActivity}>
+              {session.lastOutputLines.map((line, i) => (
+                <p
+                  key={i}
+                  className="text-[11px] leading-5 font-mono text-gray-500 truncate"
+                >
+                  {line || "\u00A0"}
+                </p>
+              ))}
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-gray-950/80 to-transparent pointer-events-none rounded-b-lg" />
           </div>
         )}
       </div>
