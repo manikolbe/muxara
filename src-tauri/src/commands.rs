@@ -88,11 +88,21 @@ end tell"#,
 }
 
 #[tauri::command]
-pub fn create_session(name: String, working_dir: String) -> Result<(), String> {
+pub fn create_session(name: String, working_dir: String, command: String) -> Result<(), String> {
     if working_dir.is_empty() {
         return Err("Working directory is required".to_string());
     }
-    client::create_session(&name, &working_dir).map_err(|e| e.to_string())
+    let cmd = if command.trim().is_empty() { "claude" } else { command.trim() };
+    client::create_session(&name, &working_dir, cmd).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn resolve_bootstrap_command(
+    working_dir: String,
+    prefs: State<'_, Mutex<Preferences>>,
+) -> String {
+    let p = prefs.lock().unwrap();
+    p.effective_bootstrap_command(&working_dir).to_string()
 }
 
 #[tauri::command]

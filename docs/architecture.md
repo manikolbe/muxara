@@ -129,7 +129,9 @@ Frontend-facing types serialized via serde:
 
 ### `commands.rs` — Tauri commands
 
-`create_session(name, working_dir)` creates a new tmux session and starts Claude Code in it. Requires a non-empty `working_dir`. Ensures the tmux server is running, checks for duplicate session names (returns an error if one exists), creates the session with `tmux new-session -d -s <name> -c <dir>`, then sends the `claude` command via `tmux send-keys`. The session auto-appears in the dashboard on the next poll cycle.
+`create_session(name, working_dir, command)` creates a new tmux session and starts Claude Code in it. Requires a non-empty `working_dir`. Ensures the tmux server is running, checks for duplicate session names (returns an error if one exists), creates the session with `tmux new-session -d -s <name> -c <dir>`, then sends the bootstrap command via `tmux send-keys`. The command parameter defaults to `"claude"` if empty. The session auto-appears in the dashboard on the next poll cycle.
+
+`resolve_bootstrap_command(working_dir)` returns the effective bootstrap command for a given working directory by checking project overrides first, then falling back to the global default.
 
 `focus_session(session_id)` opens a new iTerm2 window attached to the tmux session. It extracts the session name from the pane target ID, verifies the session exists, then uses AppleScript (`osascript`) to launch iTerm2 with `tmux attach -t <session>`. Returns an error string if the session is not found or the terminal fails to open.
 
@@ -230,15 +232,24 @@ The `Preferences` struct holds all user-configurable settings, serialized to/fro
 
 **Settings:**
 
-| Setting | Field | Default | Range |
-|---|---|---|---|
-| Working→Idle cool-off | `cooloff_minutes` | 5.0 | 0–60 min |
-| Poll interval | `poll_interval_secs` | 1.5 | 0.5–30 s |
-| Output lines per card | `output_lines` | 20 | 1–200 |
-| Show idle/unknown output | `show_idle_output` | false | — |
-| Context zone max height | `context_zone_max_height` | 192 | 48–800 px |
-| Grid columns | `grid_columns` | 2 | 1–6 |
-| Scroll pause duration | `scroll_pause_secs` | 5.0 | 0–60 s |
+| Setting | Field | Default | Range | Project-compatible |
+|---|---|---|---|---|
+| Bootstrap command | `bootstrap_command` | `"claude"` | non-empty, max 500 chars | Yes |
+| Working→Idle cool-off | `cooloff_minutes` | 5.0 | 0–60 min | No |
+| Poll interval | `poll_interval_secs` | 1.5 | 0.5–30 s | No |
+| Output lines per card | `output_lines` | 20 | 1–200 | No |
+| Show idle/unknown output | `show_idle_output` | false | — | No |
+| Context zone max height | `context_zone_max_height` | 192 | 48–800 px | No |
+| Grid columns | `grid_columns` | 2 | 1–6 | No |
+| Scroll pause duration | `scroll_pause_secs` | 5.0 | 0–60 s | No |
+
+### Layered settings model
+
+Settings follow a three-layer resolution model: **hardcoded defaults → user preferences (global) → project overrides (per working directory)**. All configuration lives in one centralized file (`preferences.json`).
+
+Project overrides are stored in a `project_overrides` field keyed by directory path. Each override is a `ProjectOverrides` struct with optional fields for project-compatible settings. Not all settings are project-compatible — dashboard-wide settings (grid columns, poll interval, etc.) affect the whole window and cannot vary per-session. The schema marks each setting with a `projectCompatible` flag that controls which settings appear in the project overrides UI.
+
+**Resolution:** `effective_bootstrap_command(working_dir)` checks project overrides for the given path first, then falls back to the global value. The new session form pre-fills the command from this resolved value and allows inline editing before session creation.
 
 `validate()` checks ranges and returns a user-friendly error string. `load()` gracefully falls back to defaults on missing or corrupt files. `save()` creates the config directory if needed and writes pretty-printed JSON.
 
@@ -258,7 +269,9 @@ A `PreferencesContext` (in `usePreferences.tsx`) loads preferences on startup an
 
 ### Settings UI
 
-The settings panel (`SettingsPanel.tsx`) is a VS Code-style modal with a category sidebar and a schema-driven content area. Settings are declared in `settingsSchema.ts` as `SettingDefinition[]` entries with label, description, type, default, validation ranges, and category. A generic renderer maps each definition to the appropriate input control (number, boolean toggle, or select dropdown). Adding a new setting requires only adding a field to the `Preferences` struct/type and a schema entry — no component changes.
+The settings panel (`SettingsPanel.tsx`) is a VS Code-style modal with a category sidebar and a schema-driven content area. Settings are declared in `settingsSchema.ts` as `SettingDefinition[]` entries with label, description, type, default, validation ranges, category, and project-compatibility flag. A generic renderer maps each definition to the appropriate input control (number, boolean toggle, select dropdown, or text). Adding a new setting requires only adding a field to the `Preferences` struct/type and a schema entry — no component changes.
+
+Categories include Sessions (bootstrap command), Polling, Display, Classifier, and Projects. The Projects category renders a special view listing configured project directories with their overrides. Each project entry shows only project-compatible settings, with empty fields inheriting the global default. Projects can be added via an OS directory picker and removed individually.
 
 ## Spike Reference
 

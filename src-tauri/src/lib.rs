@@ -32,7 +32,8 @@ pub fn run() {
             commands::kill_session,
             commands::rename_session,
             commands::get_preferences,
-            commands::set_preferences
+            commands::set_preferences,
+            commands::resolve_bootstrap_command
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

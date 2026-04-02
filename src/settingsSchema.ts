@@ -8,11 +8,25 @@ export const DEFAULT_PREFERENCES: Preferences = {
   contextZoneMaxHeight: 192,
   gridColumns: 2,
   scrollPauseSecs: 5,
+  bootstrapCommand: "claude",
+  projectOverrides: {},
 };
 
-export const CATEGORIES = ["Polling", "Display", "Classifier"] as const;
+export const CATEGORIES = ["Sessions", "Polling", "Display", "Classifier", "Projects"] as const;
 
 export const SETTINGS_SCHEMA: SettingDefinition[] = [
+  // Sessions
+  {
+    key: "bootstrapCommand",
+    label: "Default Command",
+    description:
+      "The command sent when creating a new session. Can be overridden per project.",
+    category: "Sessions",
+    type: "text",
+    default: "claude",
+    projectCompatible: true,
+  },
+
   // Polling
   {
     key: "pollIntervalSecs",

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import { usePreferences } from "../hooks/usePreferences";
 import { SETTINGS_SCHEMA, CATEGORIES, DEFAULT_PREFERENCES } from "../settingsSchema";
-import type { Preferences, SettingDefinition } from "../types";
+import type { Preferences, SettingDefinition, ProjectOverrides } from "../types";
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -82,14 +83,38 @@ function SelectField({
   );
 }
 
+function TextField({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder?: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-56 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 font-mono"
+    />
+  );
+}
+
+type SettingValue = number | boolean | string;
+
 function SettingRow({
   def,
   value,
   onChange,
+  placeholder,
 }: {
   def: SettingDefinition;
-  value: number | boolean;
-  onChange: (v: number | boolean) => void;
+  value: SettingValue;
+  onChange: (v: SettingValue) => void;
+  placeholder?: string;
 }) {
   return (
     <div className="py-3 first:pt-0 last:pb-0">
@@ -110,6 +135,12 @@ function SettingRow({
               value={value as number}
               onChange={(v) => onChange(v)}
             />
+          ) : def.type === "text" ? (
+            <TextField
+              value={value as string}
+              placeholder={placeholder}
+              onChange={(v) => onChange(v)}
+            />
           ) : (
             <NumberField
               def={def}
@@ -119,6 +150,134 @@ function SettingRow({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ProjectsView({
+  projectOverrides,
+  globalPrefs,
+  onChange,
+}: {
+  projectOverrides: Record<string, ProjectOverrides>;
+  globalPrefs: Preferences;
+  onChange: (overrides: Record<string, ProjectOverrides>) => void;
+}) {
+  const projectPaths = Object.keys(projectOverrides);
+  const projectCompatibleSettings = SETTINGS_SCHEMA.filter(
+    (s) => s.projectCompatible,
+  );
+
+  async function handleAddProject() {
+    const selected = await open({ directory: true, multiple: false });
+    if (selected && typeof selected === "string" && !projectOverrides[selected]) {
+      onChange({ ...projectOverrides, [selected]: {} });
+    }
+  }
+
+  function handleRemoveProject(path: string) {
+    const next = { ...projectOverrides };
+    delete next[path];
+    onChange(next);
+  }
+
+  function handleOverrideChange(
+    path: string,
+    key: string,
+    value: string,
+  ) {
+    const current = projectOverrides[path] || {};
+    const next = { ...current };
+    if (value === "") {
+      delete (next as Record<string, unknown>)[key];
+    } else {
+      (next as Record<string, unknown>)[key] = value;
+    }
+    onChange({ ...projectOverrides, [path]: next });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="text-xs text-gray-500">
+        Override settings for specific project directories. Empty fields inherit
+        the global default.
+      </div>
+
+      {projectPaths.length === 0 && (
+        <div className="text-xs text-gray-600 italic py-2">
+          No project overrides configured.
+        </div>
+      )}
+
+      {projectPaths.map((path) => {
+        const basename = path.split("/").filter(Boolean).pop() || path;
+        const overrides = projectOverrides[path] || {};
+
+        return (
+          <div
+            key={path}
+            className="border border-gray-700 rounded-lg overflow-hidden"
+          >
+            <div className="flex items-center justify-between px-3 py-2 bg-gray-800/50">
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-gray-200 truncate">
+                  {basename}
+                </div>
+                <div className="text-xs text-gray-500 truncate">{path}</div>
+              </div>
+              <button
+                onClick={() => handleRemoveProject(path)}
+                className="shrink-0 ml-2 text-xs text-gray-500 hover:text-red-400 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+            <div className="px-3 py-2 divide-y divide-gray-800">
+              {projectCompatibleSettings.map((def) => {
+                const overrideKey = def.key as string;
+                const overrideValue =
+                  (overrides as Record<string, unknown>)[overrideKey] as
+                    | string
+                    | undefined;
+                const globalValue = String(
+                  globalPrefs[def.key as keyof Preferences],
+                );
+
+                return (
+                  <div
+                    key={def.key}
+                    className="py-2 first:pt-0 last:pb-0"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-gray-300">
+                          {def.label}
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        <TextField
+                          value={overrideValue ?? ""}
+                          placeholder={globalValue}
+                          onChange={(v) =>
+                            handleOverrideChange(path, overrideKey, v)
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      <button
+        onClick={handleAddProject}
+        className="w-full py-2 text-xs text-gray-400 hover:text-gray-200 border border-dashed border-gray-700 hover:border-gray-500 rounded-lg transition-colors"
+      >
+        + Add Project
+      </button>
     </div>
   );
 }
@@ -135,12 +294,22 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     setDirty(false);
   }, [prefs]);
 
+  const isProjectsCategory = activeCategory === "Projects";
+
   const categorySettings = SETTINGS_SCHEMA.filter(
     (s) => s.category === activeCategory,
   );
 
-  const handleChange = (key: keyof Preferences, value: number | boolean) => {
+  const handleChange = (key: keyof Omit<Preferences, "projectOverrides">, value: SettingValue) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
+    setDirty(true);
+    setSaveError(null);
+  };
+
+  const handleProjectOverridesChange = (
+    overrides: Record<string, ProjectOverrides>,
+  ) => {
+    setDraft((prev) => ({ ...prev, projectOverrides: overrides }));
     setDirty(true);
     setSaveError(null);
   };
@@ -216,16 +385,24 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
           {/* Settings content */}
           <div className="flex-1 px-4 py-3 overflow-y-auto">
-            <div className="divide-y divide-gray-800">
-              {categorySettings.map((def) => (
-                <SettingRow
-                  key={def.key}
-                  def={def}
-                  value={draft[def.key]}
-                  onChange={(v) => handleChange(def.key, v)}
-                />
-              ))}
-            </div>
+            {isProjectsCategory ? (
+              <ProjectsView
+                projectOverrides={draft.projectOverrides}
+                globalPrefs={draft}
+                onChange={handleProjectOverridesChange}
+              />
+            ) : (
+              <div className="divide-y divide-gray-800">
+                {categorySettings.map((def) => (
+                  <SettingRow
+                    key={def.key}
+                    def={def}
+                    value={draft[def.key as keyof Preferences] as SettingValue}
+                    onChange={(v) => handleChange(def.key, v)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,3 +1,7 @@
+export interface ProjectOverrides {
+  bootstrapCommand?: string;
+}
+
 export interface Preferences {
   cooloffMinutes: number;
   pollIntervalSecs: number;
@@ -6,22 +10,25 @@ export interface Preferences {
   contextZoneMaxHeight: number;
   gridColumns: number;
   scrollPauseSecs: number;
+  bootstrapCommand: string;
+  projectOverrides: Record<string, ProjectOverrides>;
 }
 
-export type SettingType = "number" | "boolean" | "select";
+export type SettingType = "number" | "boolean" | "select" | "text";
 
 export interface SettingDefinition {
-  key: keyof Preferences;
+  key: keyof Omit<Preferences, "projectOverrides">;
   label: string;
   description: string;
   category: string;
   type: SettingType;
-  default: number | boolean;
+  default: number | boolean | string;
   min?: number;
   max?: number;
   step?: number;
   options?: { value: number; label: string }[];
   unit?: string;
+  projectCompatible?: boolean;
 }
 
 export type SessionState = "needs-input" | "working" | "idle" | "errored" | "unknown";

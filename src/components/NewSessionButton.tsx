@@ -1,17 +1,21 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { usePreferences } from "../hooks/usePreferences";
 
 export function NewSessionButton() {
+  const { prefs } = usePreferences();
   const [formOpen, setFormOpen] = useState(false);
   const [name, setName] = useState("");
   const [workingDir, setWorkingDir] = useState("");
+  const [command, setCommand] = useState(prefs.bootstrapCommand);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function reset() {
     setName("");
     setWorkingDir("");
+    setCommand(prefs.bootstrapCommand);
     setError(null);
     setFormOpen(false);
   }
@@ -19,8 +23,18 @@ export function NewSessionButton() {
   async function pickDirectory() {
     const selected = await open({ directory: true, multiple: false });
     if (selected) {
-      setWorkingDir(selected as string);
+      const dir = selected as string;
+      setWorkingDir(dir);
       setError(null);
+      try {
+        const resolved = await invoke<string>("resolve_bootstrap_command", {
+          workingDir: dir,
+        });
+        setCommand(resolved);
+      } catch {
+        // Fall back to global default on error
+        setCommand(prefs.bootstrapCommand);
+      }
     }
   }
 
@@ -38,6 +52,7 @@ export function NewSessionButton() {
       await invoke("create_session", {
         name: sessionName,
         workingDir: workingDir.trim(),
+        command: command.trim() || "claude",
       });
       reset();
     } catch (err) {
@@ -50,7 +65,10 @@ export function NewSessionButton() {
   if (!formOpen) {
     return (
       <button
-        onClick={() => setFormOpen(true)}
+        onClick={() => {
+          setCommand(prefs.bootstrapCommand);
+          setFormOpen(true);
+        }}
         className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors text-lg font-light"
         title="New session"
       >
@@ -85,6 +103,20 @@ export function NewSessionButton() {
           ? workingDir.split("/").filter(Boolean).slice(-2).join("/")
           : "Pick directory..."}
       </button>
+      <div className="flex items-center h-8 px-2 rounded-md bg-gray-800 border border-gray-700">
+        <span className="text-gray-500 text-sm mr-1 select-none">$</span>
+        <input
+          type="text"
+          value={command}
+          onChange={(e) => setCommand(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleCreate();
+            if (e.key === "Escape") reset();
+          }}
+          className="bg-transparent text-sm text-gray-200 placeholder-gray-500 focus:outline-none font-mono w-44"
+          placeholder="claude"
+        />
+      </div>
       <button
         onClick={handleCreate}
         disabled={creating || !workingDir.trim()}

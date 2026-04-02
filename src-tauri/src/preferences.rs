@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -6,6 +7,13 @@ use serde::{Deserialize, Serialize};
 /// Newtype wrapper so Tauri can manage the config directory path
 /// without ambiguity against other PathBuf-typed managed state.
 pub struct ConfigDir(pub std::path::PathBuf);
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectOverrides {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bootstrap_command: Option<String>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -17,6 +25,9 @@ pub struct Preferences {
     pub context_zone_max_height: u32,
     pub grid_columns: u32,
     pub scroll_pause_secs: f64,
+    pub bootstrap_command: String,
+    #[serde(default)]
+    pub project_overrides: HashMap<String, ProjectOverrides>,
 }
 
 impl Default for Preferences {
@@ -29,6 +40,8 @@ impl Default for Preferences {
             context_zone_max_height: 192,
             grid_columns: 2,
             scroll_pause_secs: 5.0,
+            bootstrap_command: "claude".to_string(),
+            project_overrides: HashMap::new(),
         }
     }
 }
@@ -53,7 +66,39 @@ impl Preferences {
         if !(0.0..=60.0).contains(&self.scroll_pause_secs) {
             return Err("Scroll pause must be between 0 and 60 seconds".to_string());
         }
+        if self.bootstrap_command.trim().is_empty() {
+            return Err("Bootstrap command must not be empty".to_string());
+        }
+        if self.bootstrap_command.len() > 500 {
+            return Err("Bootstrap command must be 500 characters or fewer".to_string());
+        }
+        for (path, overrides) in &self.project_overrides {
+            if path.trim().is_empty() {
+                return Err("Project path must not be empty".to_string());
+            }
+            if let Some(ref cmd) = overrides.bootstrap_command {
+                if cmd.trim().is_empty() {
+                    return Err(format!(
+                        "Bootstrap command for project '{}' must not be empty",
+                        path
+                    ));
+                }
+                if cmd.len() > 500 {
+                    return Err(format!(
+                        "Bootstrap command for project '{}' must be 500 characters or fewer",
+                        path
+                    ));
+                }
+            }
+        }
         Ok(())
+    }
+
+    pub fn effective_bootstrap_command(&self, working_dir: &str) -> &str {
+        self.project_overrides
+            .get(working_dir)
+            .and_then(|o| o.bootstrap_command.as_deref())
+            .unwrap_or(&self.bootstrap_command)
     }
 
     pub fn load(config_dir: &Path) -> Self {
@@ -91,6 +136,8 @@ mod tests {
         assert_eq!(prefs.context_zone_max_height, 192);
         assert_eq!(prefs.grid_columns, 2);
         assert_eq!(prefs.scroll_pause_secs, 5.0);
+        assert_eq!(prefs.bootstrap_command, "claude");
+        assert!(prefs.project_overrides.is_empty());
     }
 
     #[test]
@@ -127,6 +174,96 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_rejects_empty_bootstrap_command() {
+        let mut prefs = Preferences::default();
+        prefs.bootstrap_command = "  ".to_string();
+        assert!(prefs.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_rejects_long_bootstrap_command() {
+        let mut prefs = Preferences::default();
+        prefs.bootstrap_command = "x".repeat(501);
+        assert!(prefs.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_rejects_empty_project_override_command() {
+        let mut prefs = Preferences::default();
+        prefs.project_overrides.insert(
+            "/some/path".to_string(),
+            ProjectOverrides {
+                bootstrap_command: Some("".to_string()),
+            },
+        );
+        assert!(prefs.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_rejects_empty_project_path() {
+        let mut prefs = Preferences::default();
+        prefs.project_overrides.insert(
+            "  ".to_string(),
+            ProjectOverrides {
+                bootstrap_command: Some("claude".to_string()),
+            },
+        );
+        assert!(prefs.validate().is_err());
+    }
+
+    #[test]
+    fn test_effective_bootstrap_command_global() {
+        let prefs = Preferences {
+            bootstrap_command: "claude --verbose".to_string(),
+            ..Preferences::default()
+        };
+        assert_eq!(
+            prefs.effective_bootstrap_command("/some/dir"),
+            "claude --verbose"
+        );
+    }
+
+    #[test]
+    fn test_effective_bootstrap_command_project_override() {
+        let mut prefs = Preferences {
+            bootstrap_command: "claude --verbose".to_string(),
+            ..Preferences::default()
+        };
+        prefs.project_overrides.insert(
+            "/projects/matrix".to_string(),
+            ProjectOverrides {
+                bootstrap_command: Some("claude --plugin ../morpheus".to_string()),
+            },
+        );
+        assert_eq!(
+            prefs.effective_bootstrap_command("/projects/matrix"),
+            "claude --plugin ../morpheus"
+        );
+        assert_eq!(
+            prefs.effective_bootstrap_command("/projects/other"),
+            "claude --verbose"
+        );
+    }
+
+    #[test]
+    fn test_effective_bootstrap_command_project_no_override() {
+        let mut prefs = Preferences {
+            bootstrap_command: "claude --verbose".to_string(),
+            ..Preferences::default()
+        };
+        prefs.project_overrides.insert(
+            "/projects/matrix".to_string(),
+            ProjectOverrides {
+                bootstrap_command: None,
+            },
+        );
+        assert_eq!(
+            prefs.effective_bootstrap_command("/projects/matrix"),
+            "claude --verbose"
+        );
+    }
+
+    #[test]
     fn test_save_load_roundtrip() {
         let dir = std::env::temp_dir().join("muxara_test_prefs_roundtrip");
         let _ = fs::remove_dir_all(&dir);
@@ -134,6 +271,27 @@ mod tests {
         let mut prefs = Preferences::default();
         prefs.grid_columns = 3;
         prefs.poll_interval_secs = 2.0;
+        prefs.save(&dir).unwrap();
+
+        let loaded = Preferences::load(&dir);
+        assert_eq!(prefs, loaded);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_save_load_roundtrip_with_overrides() {
+        let dir = std::env::temp_dir().join("muxara_test_prefs_overrides");
+        let _ = fs::remove_dir_all(&dir);
+
+        let mut prefs = Preferences::default();
+        prefs.bootstrap_command = "claude --model opus".to_string();
+        prefs.project_overrides.insert(
+            "/projects/matrix".to_string(),
+            ProjectOverrides {
+                bootstrap_command: Some("claude --plugin ../morpheus".to_string()),
+            },
+        );
         prefs.save(&dir).unwrap();
 
         let loaded = Preferences::load(&dir);

@@ -278,8 +278,8 @@ pub fn capture_pane(target: &str) -> Result<CapturedPane, TmuxError> {
 }
 
 /// Create a new tmux session with the given name and working directory,
-/// then send the `claude` command to start Claude Code in the new pane.
-pub fn create_session(name: &str, working_dir: &str) -> Result<(), TmuxError> {
+/// then send the bootstrap command to start Claude Code in the new pane.
+pub fn create_session(name: &str, working_dir: &str, command: &str) -> Result<(), TmuxError> {
     ensure_server()?;
 
     // Check for duplicate session name
@@ -292,7 +292,7 @@ pub fn create_session(name: &str, working_dir: &str) -> Result<(), TmuxError> {
     }
 
     run_tmux(&["new-session", "-d", "-s", name, "-c", working_dir])?;
-    run_tmux(&["send-keys", "-t", name, "claude", "Enter"])?;
+    run_tmux(&["send-keys", "-t", name, command, "Enter"])?;
     Ok(())
 }
 

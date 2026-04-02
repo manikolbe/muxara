@@ -60,4 +60,6 @@ Clicking a session card opens a new iTerm2 window attached to that tmux session 
 
 User preferences are configurable via a VS Code-style settings panel (ticket #25). Settings are persisted to a JSON file in the app config directory and take effect immediately. Configurable values include poll interval, scroll pause duration, grid columns, context zone height, output lines per card, idle/unknown output visibility, and the Working→Idle cool-off period. The settings UI is schema-driven — adding a new setting requires only a field in the Preferences struct and a schema entry.
 
+The bootstrap command is configurable at global and project levels (ticket #18). Settings follow a layered model: hardcoded defaults → user preferences → project overrides. Project overrides are stored centrally in the preferences file, keyed by directory path. The new session form pre-fills the command from the resolved effective value (checking project overrides first, then global default) and allows inline editing before creation. The settings panel has a "Projects" category for managing per-project overrides, showing only project-compatible settings. The schema marks each setting with a `projectCompatible` flag to control this.
+
 **Not yet implemented:** attention signals.
