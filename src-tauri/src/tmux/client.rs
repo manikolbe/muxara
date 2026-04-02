@@ -292,6 +292,7 @@ pub fn create_session(name: &str, working_dir: &str, command: &str) -> Result<()
     }
 
     run_tmux(&["new-session", "-d", "-s", name, "-c", working_dir])?;
+    run_tmux(&["set-option", "-t", name, "mouse", "on"])?;
     run_tmux(&["send-keys", "-t", name, command, "Enter"])?;
     Ok(())
 }
