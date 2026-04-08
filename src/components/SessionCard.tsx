@@ -62,7 +62,7 @@ function stateLabel(session: Session): string {
   return config.label;
 }
 
-export function SessionCard({ session, onScrollActivity, focused, onFocus }: { session: Session; onScrollActivity: () => void; focused: boolean; onFocus: (id: string) => void }) {
+export function SessionCard({ session, onScrollActivity, focused, selected, onFocus }: { session: Session; onScrollActivity: () => void; focused: boolean; selected: boolean; onFocus: (id: string) => void }) {
   const { prefs } = usePreferences();
   const config = stateConfig[session.state];
   const [clicking, setClicking] = useState(false);
@@ -143,7 +143,7 @@ export function SessionCard({ session, onScrollActivity, focused, onFocus }: { s
         className={`flex flex-col rounded-lg cursor-pointer transition-all duration-150 ${
           clicking ? "scale-[0.97] brightness-125" : "hover:brightness-110"
         } ${config.border} ${config.bg} ${
-          focused ? "border-l-[6px] !border-l-emerald-400 ring-1 ring-emerald-400/40 shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_20px_rgba(52,211,153,0.2)] -translate-y-1" : "border-l-2 shadow-md"
+          focused ? "border-l-[6px] !border-l-emerald-400 ring-1 ring-emerald-400/40 shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_20px_rgba(52,211,153,0.2)] -translate-y-1" : selected ? "border-l-2 ring-1 ring-gray-500/60 shadow-lg" : "border-l-2 shadow-md"
         } ${
           clicking ? "focused-glow" : ""
         }`}

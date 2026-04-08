@@ -18,9 +18,10 @@ interface SessionGridProps {
   onScrollActivity: () => void;
   focusedSessionId: string | null;
   onFocusSession: (id: string) => void;
+  selectedIndex: number;
 }
 
-export function SessionGrid({ sessions, loading, error, onScrollActivity, focusedSessionId, onFocusSession }: SessionGridProps) {
+export function SessionGrid({ sessions, loading, error, onScrollActivity, focusedSessionId, onFocusSession, selectedIndex }: SessionGridProps) {
   const { prefs } = usePreferences();
   if (loading) {
     return (
@@ -48,8 +49,8 @@ export function SessionGrid({ sessions, loading, error, onScrollActivity, focuse
 
   return (
     <div className={`grid ${GRID_COLS[prefs.gridColumns] || GRID_COLS[2]} gap-4`}>
-      {sessions.map((session) => (
-        <SessionCard key={session.id} session={session} onScrollActivity={onScrollActivity} focused={session.id === focusedSessionId} onFocus={onFocusSession} />
+      {sessions.map((session, index) => (
+        <SessionCard key={session.id} session={session} onScrollActivity={onScrollActivity} focused={session.id === focusedSessionId} selected={index === selectedIndex} onFocus={onFocusSession} />
       ))}
     </div>
   );

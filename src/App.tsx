@@ -1,15 +1,75 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 import { useSessions } from "./hooks/useSessions";
-import { PreferencesProvider } from "./hooks/usePreferences";
+import { PreferencesProvider, usePreferences } from "./hooks/usePreferences";
 import { SessionGrid } from "./components/SessionGrid";
 import { NewSessionButton } from "./components/NewSessionButton";
 import { SettingsPanel } from "./components/SettingsPanel";
 
 function Dashboard() {
   const { sessions, loading, error, onScrollActivity } = useSessions();
+  const { prefs } = usePreferences();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+
+  // Keyboard navigation for session cards
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (sessions.length === 0) return;
+      // Don't capture keys when typing in inputs or when settings is open
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || settingsOpen) return;
+
+      const cols = prefs.gridColumns;
+      let nextIndex = selectedIndex;
+
+      switch (e.key) {
+        case "ArrowRight":
+          e.preventDefault();
+          nextIndex = selectedIndex < 0 ? 0 : Math.min(selectedIndex + 1, sessions.length - 1);
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          nextIndex = selectedIndex < 0 ? 0 : Math.max(selectedIndex - 1, 0);
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          nextIndex = selectedIndex < 0 ? 0 : Math.min(selectedIndex + cols, sessions.length - 1);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          nextIndex = selectedIndex < 0 ? 0 : Math.max(selectedIndex - cols, 0);
+          break;
+        case "Enter": {
+          e.preventDefault();
+          if (selectedIndex >= 0 && selectedIndex < sessions.length) {
+            const session = sessions[selectedIndex];
+            setFocusedSessionId(session.id);
+            invoke("focus_session", { sessionId: session.id }).catch((err) =>
+              console.error("Failed to focus session:", err)
+            );
+          }
+          return;
+        }
+        default:
+          return;
+      }
+
+      setSelectedIndex(nextIndex);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [sessions, selectedIndex, prefs.gridColumns, settingsOpen]);
+
+  // Reset selection when sessions change and index is out of bounds
+  useEffect(() => {
+    if (selectedIndex >= sessions.length) {
+      setSelectedIndex(sessions.length > 0 ? sessions.length - 1 : -1);
+    }
+  }, [sessions.length, selectedIndex]);
 
   const handleTitleBarDrag = useCallback((e: React.MouseEvent) => {
     // Only initiate drag if the mousedown target is the drag region itself,
@@ -64,7 +124,7 @@ function Dashboard() {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-4">
-        <SessionGrid sessions={sessions} loading={loading} error={error} onScrollActivity={onScrollActivity} focusedSessionId={focusedSessionId} onFocusSession={setFocusedSessionId} />
+        <SessionGrid sessions={sessions} loading={loading} error={error} onScrollActivity={onScrollActivity} focusedSessionId={focusedSessionId} onFocusSession={setFocusedSessionId} selectedIndex={selectedIndex} />
       </div>
 
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
