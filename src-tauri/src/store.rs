@@ -14,12 +14,11 @@ fn state_priority(state: &SessionState) -> u8 {
     match state {
         SessionState::NeedsInput => 0,
         SessionState::Errored => 1,
-        // Working, Idle, Unknown share the same priority so they
-        // fall through to the stable tie-breaker (session name)
-        // instead of shuffling on every poll cycle.
         SessionState::Working => 2,
-        SessionState::Idle => 2,
-        SessionState::Unknown => 2,
+        // Idle and Unknown share priority so they stay in stable
+        // alphabetical order instead of shuffling on every poll.
+        SessionState::Idle => 3,
+        SessionState::Unknown => 3,
     }
 }
 
@@ -125,6 +124,7 @@ impl SessionStore {
             if let Some(captured) = captures.get(&target) {
                 session.pane_title = captured.pane_title.clone();
 
+                let is_first_capture = session.last_output_hash.is_none();
                 let hash_changed = session
                     .last_output_hash
                     .as_ref()
@@ -149,9 +149,12 @@ impl SessionStore {
                 // Classify session state
                 let seconds_since_change =
                     (now - session.last_changed_at).num_milliseconds() as f64 / 1000.0;
-                // If hash changed, pass a sentinel previous hash so the classifier
-                // sees a delta. If unchanged, pass the same hash.
-                let previous_hash_for_classifier = if hash_changed {
+                // On first capture (no previous hash), pass None so the classifier
+                // treats it as initial state rather than a delta. On subsequent
+                // captures, pass a sentinel if changed so the classifier sees a delta.
+                let previous_hash_for_classifier = if is_first_capture {
+                    None
+                } else if hash_changed {
                     Some("__changed__")
                 } else {
                     Some(captured.output_hash.as_str())

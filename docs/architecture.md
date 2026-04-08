@@ -65,7 +65,8 @@ The frontend is a React SPA bundled by Vite and rendered inside the Tauri webvie
 
 - **`SessionGrid`** — renders a responsive CSS grid (`1 / 2 / 3` columns at sm/lg breakpoints) of `SessionCard` components. Handles three non-data states: loading (shown during first fetch), error (shown when the backend call fails), and empty (no sessions exist). NeedsInput sessions appear first (sorting is handled by the backend).
 - **`SessionCard`** — two-zone card layout, clickable to focus the session:
-  - **Click handler**: calls `invoke("focus_session", { sessionId })` to open an iTerm2 window attached to the tmux session. Brief scale-down + brightness animation on click. The last-focused card is tracked in `Dashboard` state and displayed with a 3D "lifted" effect (translate, scale, emerald glow shadow) to distinguish it from other cards — separate from the state-colored left border which continues to indicate session state.
+  - **Click handler**: calls `invoke("focus_session", { sessionId })` to open an iTerm2 window attached to the tmux session. Brief scale-down + brightness animation on click. The last-focused card is tracked in `Dashboard` state and displayed with a lifted effect (translate + emerald glow shadow) to distinguish it from other cards — separate from the state-colored left border which continues to indicate session state.
+  - **Keyboard navigation**: Arrow keys move a `selectedIndex` through the grid (left/right ±1, up/down ±columns), Enter triggers `focus_session` on the selected card. The keyboard-selected card shows a subtle gray ring (`ring-1 ring-gray-500/60`) distinct from the emerald focus glow. Selection is ignored when typing in inputs or when the settings panel is open.
   - **Context menu** (right-click): shows a dropdown with Rename and Kill Session actions. Kill shows a confirmation dialog before calling `invoke("kill_session", { sessionId })`. Rename replaces the session title with an inline text input that submits on Enter/blur and cancels on Escape, calling `invoke("rename_session", { sessionId, newName })`.
   - **Orientation zone** (top): status dot (`StatusBadge`), session title (or inline rename input), abbreviated working directory, state label + recency (e.g. "Working · 2m ago"). NeedsInput cards additionally show the input type (Permission / Question).
   - **Context zone** (bottom, separated by a subtle divider): last terminal output lines in monospace.
@@ -118,7 +119,7 @@ Maintains a `HashMap<String, TrackedSession>` keyed by pane target string (e.g.,
 3. Compare output hash — if changed, update `last_changed_at` and `last_output_lines`
 4. Prune sessions whose pane target no longer appears in tmux
 
-**`to_sessions()`** converts tracked sessions to frontend-ready `Session` structs with ISO 8601 timestamps. Sessions are sorted by state priority (NeedsInput > Errored > Working > Idle > Unknown), then alphabetically by name.
+**`to_sessions()`** converts tracked sessions to frontend-ready `Session` structs with ISO 8601 timestamps. Sessions are sorted by state priority (NeedsInput > Errored > Working > Idle/Unknown), then alphabetically by name within each tier. Idle and Unknown share the same priority to maintain stable card positions — only attention-requiring states (NeedsInput, Errored) and actively Working sessions float above them.
 
 ### `session.rs` — data model
 
@@ -254,7 +255,7 @@ The `Preferences` struct holds all user-configurable settings, serialized to/fro
 | Use git worktrees | `use_worktree` | true | — | Yes |
 | Working→Idle cool-off | `cooloff_minutes` | 5.0 | 0–60 min | No |
 | Poll interval | `poll_interval_secs` | 1.5 | 0.5–30 s | No |
-| Output lines per card | `output_lines` | 20 | 1–200 | No |
+| Output lines per card | `output_lines` | 30 | 1–200 | No |
 | Show idle/unknown output | `show_idle_output` | false | — | No |
 | Context zone max height | `context_zone_max_height` | 192 | 48–800 px | No |
 | Grid columns | `grid_columns` | 2 | 1–6 | No |
