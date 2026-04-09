@@ -162,7 +162,7 @@ Lightweight helpers for git repository detection, branch detection, and worktree
 
 **Usage:**
 - `create_session` uses `is_git_repo()` to decide whether to append `-w <name>` to the bootstrap command
-- `SessionStore::reconcile()` uses `detect_branch()` and `is_worktree()` to enrich session data with git metadata, cached per working directory change
+- `SessionStore::reconcile()` uses `detect_branch()` and `is_worktree()` to enrich session data with git metadata. Branch is refreshed every poll cycle so in-session branch switches are reflected immediately; worktree status is cached per working directory change
 
 ## Data Flow
 

@@ -107,14 +107,17 @@ impl SessionStore {
             session.working_directory = pane.current_path.clone();
             session.last_seen_at = now;
 
-            // Refresh git info only when working directory changes
+            // Refresh git branch every poll cycle (cheap ~1ms call) so branch
+            // switches are reflected immediately.  Worktree status only needs
+            // to be checked when the directory changes since it can't change
+            // without a directory change.
+            session.git_branch = git::detect_branch(&pane.current_path);
             let dir_changed = session
                 .last_git_checked_dir
                 .as_ref()
                 .map(|d| d != &pane.current_path)
                 .unwrap_or(true);
             if dir_changed {
-                session.git_branch = git::detect_branch(&pane.current_path);
                 session.is_worktree = Some(git::is_worktree(&pane.current_path));
                 session.last_git_checked_dir = Some(pane.current_path.clone());
             }
