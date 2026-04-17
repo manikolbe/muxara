@@ -1,8 +1,24 @@
-*.log
+# Dependencies
 node_modules/
+
+# Build output
 dist/
 dist-ssr/
-*.local
 src-tauri/target/
 src-tauri/gen/
+
+# Environment and secrets
+.env*
+
+# Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
 .DS_Store
+
+# Misc
+*.log
+*.local
