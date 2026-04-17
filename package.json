@@ -1,7 +1,20 @@
 {
   "name": "muxara",
-  "private": true,
   "version": "0.1.0",
+  "description": "Desktop control plane for managing parallel Claude Code sessions",
+  "license": "MIT",
+  "author": "Muxara Contributors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/muxara/muxara.git"
+  },
+  "keywords": [
+    "claude-code",
+    "tmux",
+    "developer-tools",
+    "tauri",
+    "session-manager"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",

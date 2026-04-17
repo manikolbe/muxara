@@ -1,0 +1,103 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in Muxara
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill out the sections below to help us reproduce and fix it.
+
+  - type: input
+    id: muxara-version
+    attributes:
+      label: Muxara Version
+      description: Check About or the title bar
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS Version
+      description: "Apple menu > About This Mac"
+      placeholder: "15.0 (Sequoia)"
+    validations:
+      required: true
+
+  - type: input
+    id: tmux-version
+    attributes:
+      label: tmux Version
+      description: "Run: tmux -V"
+      placeholder: "tmux 3.4"
+    validations:
+      required: true
+
+  - type: input
+    id: iterm-version
+    attributes:
+      label: iTerm2 Version
+      description: "iTerm2 > About iTerm2"
+      placeholder: "3.5.0"
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to trigger the bug.
+      placeholder: |
+        1. Open Muxara
+        2. Click "+"
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: session-state
+    attributes:
+      label: Related session state (if applicable)
+      options:
+        - Not applicable
+        - NeedsInput
+        - Working
+        - Idle
+        - Errored
+        - Unknown
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or terminal output
+      description: Paste any relevant logs or error messages.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Attach screenshots if they help illustrate the issue.
+    validations:
+      required: false
