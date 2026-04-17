@@ -28,7 +28,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$REPO" ]]; then
-  # Auto-detect from current git remote
   REPO=$(gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || true)
   if [[ -z "$REPO" ]]; then
     echo "Error: Could not detect repo. Use --repo OWNER/NAME"
@@ -42,6 +41,9 @@ echo ""
 
 # --- Helper -------------------------------------------------------------------
 
+BODY_FILE=$(mktemp)
+trap 'rm -f "$BODY_FILE"' EXIT
+
 run() {
   if $DRY_RUN; then
     echo "[dry-run] $*"
@@ -50,20 +52,16 @@ run() {
   fi
 }
 
-# Track created issue numbers for dependency references
-declare -A ISSUES
-
 create_issue() {
   local number="$1"
   local title="$2"
   local labels="$3"
-  local body="$4"
+  # Body is read from $BODY_FILE (written before calling this function)
 
   echo "Creating issue #${number}: ${title}"
 
   if $DRY_RUN; then
-    echo "[dry-run] gh issue create --repo $REPO --title \"$title\" --label \"$labels\" --milestone \"v0.1.0 Public Release\" --body \"...\""
-    ISSUES[$number]="(dry-run-${number})"
+    echo "[dry-run] gh issue create --repo $REPO --title \"$title\" --label \"$labels\" --milestone \"v0.1.0 Public Release\" --body-file ..."
   else
     local result
     result=$(gh issue create \
@@ -71,13 +69,8 @@ create_issue() {
       --title "$title" \
       --label "$labels" \
       --milestone "v0.1.0 Public Release" \
-      --body "$body" 2>&1)
-    local issue_url
-    issue_url=$(echo "$result" | grep -o 'https://.*' | head -1)
-    local issue_num
-    issue_num=$(echo "$issue_url" | grep -o '[0-9]*$')
-    ISSUES[$number]="$issue_num"
-    echo "  -> Created: $issue_url"
+      --body-file "$BODY_FILE" 2>&1)
+    echo "  -> Created: $(echo "$result" | grep -o 'https://.*' | head -1)"
   fi
 }
 
@@ -85,24 +78,22 @@ create_issue() {
 
 echo "=== Creating Labels ==="
 
-declare -A LABELS=(
-  ["metadata"]="#0E8A16:Package metadata and repo hygiene"
-  ["documentation"]="#0075CA:Documentation and guides"
-  ["community"]="#D876E3:Community health, templates, and contributor experience"
-  ["ci/cd"]="#F9D0C4:Build, test, and release automation"
-  ["distribution"]="#FEF2C0:Packaging, signing, and distribution channels"
-  ["release"]="#B60205:Release execution and coordination"
-)
-
-for label in "${!LABELS[@]}"; do
-  IFS=':' read -r color description <<< "${LABELS[$label]}"
-  echo "Creating label: $label"
-  run gh label create "$label" \
+create_label() {
+  local name="$1" color="$2" description="$3"
+  echo "Creating label: $name"
+  run gh label create "$name" \
     --repo "$REPO" \
     --color "${color#\#}" \
     --description "$description" \
     --force
-done
+}
+
+create_label "metadata"      "#0E8A16" "Package metadata and repo hygiene"
+create_label "documentation" "#0075CA" "Documentation and guides"
+create_label "community"     "#D876E3" "Community health, templates, and contributor experience"
+create_label "ci/cd"         "#F9D0C4" "Build, test, and release automation"
+create_label "distribution"  "#FEF2C0" "Packaging, signing, and distribution channels"
+create_label "release"       "#B60205" "Release execution and coordination"
 
 echo ""
 
@@ -126,10 +117,7 @@ echo "=== Creating Issues ==="
 
 # --- Metadata & Hygiene ---
 
-create_issue 1 \
-  "Add MIT LICENSE file" \
-  "metadata" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Add an MIT license file to the repository root. This is a legal prerequisite for open-source publication.
 
 ## Acceptance Criteria
@@ -139,13 +127,10 @@ Add an MIT license file to the repository root. This is a legal prerequisite for
 - [ ] Copyright line: `Copyright (c) 2026 Muxara Contributors`
 - [ ] `license` field added to `package.json`: `"MIT"`
 - [ ] `license` field added to `src-tauri/Cargo.toml`: `"MIT"`
-BODY
-)"
+EOF
+create_issue 1 "Add MIT LICENSE file" "metadata"
 
-create_issue 2 \
-  "Update package metadata for public release" \
-  "metadata" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Update metadata fields across `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json` for public release.
 
 **Depends on:** #1
@@ -166,13 +151,10 @@ Update metadata fields across `package.json`, `src-tauri/Cargo.toml`, and `src-t
 - [ ] Set `bundle.macOS.minimumSystemVersion` to `"12.0"`
 - [ ] Configure DMG layout
 - [ ] Enable hardened runtime
-BODY
-)"
+EOF
+create_issue 2 "Update package metadata for public release" "metadata"
 
-create_issue 3 \
-  "Clean up .gitignore for public repo" \
-  "metadata" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Ensure `.gitignore` covers editor files, environment secrets, and build artifacts.
 
 ## Acceptance Criteria
@@ -181,15 +163,12 @@ Ensure `.gitignore` covers editor files, environment secrets, and build artifact
 - [ ] `.vscode/` and `.idea/` added
 - [ ] `*.swp`, `*.swo` added
 - [ ] Existing entries preserved
-BODY
-)"
+EOF
+create_issue 3 "Clean up .gitignore for public repo" "metadata"
 
 # --- Documentation ---
 
-create_issue 4 \
-  "Write README.md with hero section, screenshots, and install guide" \
-  "documentation" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Create a professional README that serves as the project's landing page.
 
 **Depends on:** #1, #2
@@ -214,13 +193,10 @@ Create a professional README that serves as the project's landing page.
 - [ ] Screenshot placeholder with TODO
 - [ ] Three installation methods documented
 - [ ] All internal links work
-BODY
-)"
+EOF
+create_issue 4 "Write README.md with hero section, screenshots, and install guide" "documentation"
 
-create_issue 5 \
-  "Write CONTRIBUTING.md with dev setup and PR process" \
-  "documentation,community" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Create a contributor guide that makes it easy for newcomers to go from clone to submitted PR.
 
 ## Structure
@@ -245,13 +221,10 @@ Create a contributor guide that makes it easy for newcomers to go from clone to 
 - [ ] Commit conventions documented
 - [ ] Links to CODE_OF_CONDUCT.md
 - [ ] Welcoming, encouraging tone
-BODY
-)"
+EOF
+create_issue 5 "Write CONTRIBUTING.md with dev setup and PR process" "documentation,community"
 
-create_issue 6 \
-  "Add CODE_OF_CONDUCT.md (Contributor Covenant v2.1)" \
-  "community" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Adopt the Contributor Covenant v2.1 as the project's code of conduct.
 
 ## Acceptance Criteria
@@ -260,13 +233,10 @@ Adopt the Contributor Covenant v2.1 as the project's code of conduct.
 - [ ] Contributor Covenant v2.1 text
 - [ ] Contact method for reporting violations
 - [ ] Enforcement guidelines present
-BODY
-)"
+EOF
+create_issue 6 "Add CODE_OF_CONDUCT.md (Contributor Covenant v2.1)" "community"
 
-create_issue 7 \
-  "Add SECURITY.md with vulnerability reporting process" \
-  "community" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Create a security policy for responsible vulnerability disclosure.
 
 ## Acceptance Criteria
@@ -276,13 +246,10 @@ Create a security policy for responsible vulnerability disclosure.
 - [ ] Scope defined (Muxara only, not tmux/iTerm2/Claude Code)
 - [ ] Response timeline stated (e.g., 48-hour acknowledgment)
 - [ ] Supported versions table
-BODY
-)"
+EOF
+create_issue 7 "Add SECURITY.md with vulnerability reporting process" "community"
 
-create_issue 8 \
-  "Create CHANGELOG.md seeded from commit history" \
-  "documentation" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Create a changelog in [Keep a Changelog](https://keepachangelog.com/) format, seeded with all current features as the v0.1.0 entry.
 
 ## Acceptance Criteria
@@ -291,13 +258,10 @@ Create a changelog in [Keep a Changelog](https://keepachangelog.com/) format, se
 - [ ] `[Unreleased]` section at top
 - [ ] `[0.1.0]` section with all current features grouped by category
 - [ ] Comparison links at bottom
-BODY
-)"
+EOF
+create_issue 8 "Create CHANGELOG.md seeded from commit history" "documentation"
 
-create_issue 9 \
-  "Add spike/README.md documenting the calibration process" \
-  "documentation" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Document the `spike/` directory as a calibration dataset for the session status classifier. The spike contains real captured terminal output used to derive the classifier's regex patterns. If Claude Code's output format changes, this process needs to be repeated.
 
 ## Contents to Document
@@ -315,15 +279,12 @@ Document the `spike/` directory as a calibration dataset for the session status 
 - [ ] Step-by-step recalibration process
 - [ ] Links to production classifier (`src-tauri/src/tmux/classifier.rs`)
 - [ ] Makes clear this is intentionally retained
-BODY
-)"
+EOF
+create_issue 9 "Add spike/README.md documenting the calibration process" "documentation"
 
 # --- Community & GitHub Config ---
 
-create_issue 10 \
-  "Create GitHub issue templates (bug report, feature request)" \
-  "community" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Add YAML-based issue templates for structured bug reports and feature requests.
 
 ## Templates
@@ -345,13 +306,10 @@ Add YAML-based issue templates for structured bug reports and feature requests.
 - [ ] `.github/ISSUE_TEMPLATE/feature_request.yml` exists
 - [ ] `.github/ISSUE_TEMPLATE/config.yml` exists
 - [ ] Templates render correctly on GitHub
-BODY
-)"
+EOF
+create_issue 10 "Create GitHub issue templates (bug report, feature request)" "community"
 
-create_issue 11 \
-  "Create PR template with checklist" \
-  "community" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Add a pull request template that prompts contributors to describe changes and confirm conventions.
 
 ## Acceptance Criteria
@@ -360,13 +318,10 @@ Add a pull request template that prompts contributors to describe changes and co
 - [ ] Sections: Summary, Related Issues, Test Plan, Checklist
 - [ ] Checklist: tests pass, docs updated, CHANGELOG updated, no secrets
 - [ ] Concise enough for repeat contributors
-BODY
-)"
+EOF
+create_issue 11 "Create PR template with checklist" "community"
 
-create_issue 12 \
-  "Configure GitHub repo settings (branch protection, topics, discussions)" \
-  "community" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Configure the GitHub repository for professional open-source maintenance. Manual task via GitHub UI or `gh` CLI.
 
 **Depends on:** #13 (CI must exist for required status checks)
@@ -379,15 +334,12 @@ Configure the GitHub repository for professional open-source maintenance. Manual
 - [ ] Enable Discussions
 - [ ] Disable wiki
 - [ ] Enable auto-delete head branches
-BODY
-)"
+EOF
+create_issue 12 "Configure GitHub repo settings (branch protection, topics, discussions)" "community"
 
 # --- CI/CD ---
 
-create_issue 13 \
-  "Add CI workflow for build, test, and lint" \
-  "ci/cd" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Add a GitHub Actions CI workflow that runs on every push to `main` and all PRs.
 
 ## Workflow: `.github/workflows/ci.yml`
@@ -403,13 +355,10 @@ Add a GitHub Actions CI workflow that runs on every push to `main` and all PRs.
 - [ ] Runs on macOS
 - [ ] Frontend builds, Rust fmt/clippy/test all run
 - [ ] Dependencies cached
-BODY
-)"
+EOF
+create_issue 13 "Add CI workflow for build, test, and lint" "ci/cd"
 
-create_issue 14 \
-  "Add release workflow with Tauri DMG builds" \
-  "ci/cd,distribution" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Add a GitHub Actions workflow that builds signed macOS DMGs on version tag push using `tauri-apps/tauri-action`.
 
 **Depends on:** #13, #17
@@ -429,13 +378,10 @@ Add a GitHub Actions workflow that builds signed macOS DMGs on version tag push 
 - [ ] Builds for both architectures
 - [ ] Code signing secrets referenced
 - [ ] Creates draft release with DMGs
-BODY
-)"
+EOF
+create_issue 14 "Add release workflow with Tauri DMG builds" "ci/cd,distribution"
 
-create_issue 15 \
-  "Add version sync check across package files" \
-  "ci/cd" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Add a CI step that verifies version consistency across `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
 
 **Depends on:** #13
@@ -446,15 +392,12 @@ Add a CI step that verifies version consistency across `package.json`, `src-taur
 - [ ] Fails build on mismatch
 - [ ] Clear error message showing which files differ
 - [ ] Optional: `scripts/sync-version.sh` helper to bump all three
-BODY
-)"
+EOF
+create_issue 15 "Add version sync check across package files" "ci/cd"
 
 # --- Apple Developer Setup ---
 
-create_issue 16 \
-  "Document Apple Developer certificate and API key setup" \
-  "distribution" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Create a guide for generating the Apple Developer certificates and App Store Connect API key needed for code signing and notarization.
 
 ## Guide: `docs/apple-signing-guide.md`
@@ -471,13 +414,10 @@ Create a guide for generating the Apple Developer certificates and App Store Con
 - [ ] Base64 encoding instructions
 - [ ] All secret names listed
 - [ ] Warning about one-time .p8 download
-BODY
-)"
+EOF
+create_issue 16 "Document Apple Developer certificate and API key setup" "distribution"
 
-create_issue 17 \
-  "Configure GitHub Secrets for Apple code signing" \
-  "distribution,ci/cd" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Add Apple signing credentials as GitHub repository secrets.
 
 **Depends on:** #16
@@ -499,15 +439,12 @@ Add Apple signing credentials as GitHub repository secrets.
 - [ ] Release workflow references them correctly
 - [ ] Test with `v0.1.0-rc.1` tag
 - [ ] DMG is signed and notarized
-BODY
-)"
+EOF
+create_issue 17 "Configure GitHub Secrets for Apple code signing" "distribution,ci/cd"
 
 # --- Distribution ---
 
-create_issue 18 \
-  "Create homebrew-muxara tap with cask formula" \
-  "distribution" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Create `muxara/homebrew-muxara` repo with a Homebrew cask formula pointing to GitHub Release DMGs.
 
 **Depends on:** #14
@@ -527,13 +464,10 @@ Create `muxara/homebrew-muxara` repo with a Homebrew cask formula pointing to Gi
 - [ ] `brew tap muxara/muxara` succeeds
 - [ ] `brew install --cask muxara` works
 - [ ] Uninstall and zap work correctly
-BODY
-)"
+EOF
+create_issue 18 "Create homebrew-muxara tap with cask formula" "distribution"
 
-create_issue 19 \
-  "Add Homebrew tap update automation" \
-  "distribution,ci/cd" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Automate cask formula updates when new releases are published.
 
 **Depends on:** #18
@@ -544,15 +478,12 @@ Automate cask formula updates when new releases are published.
 - [ ] Version and SHA256 updated automatically
 - [ ] Formula update is auto-merged or creates a PR
 - [ ] Tap remains functional after updates
-BODY
-)"
+EOF
+create_issue 19 "Add Homebrew tap update automation" "distribution,ci/cd"
 
 # --- Release ---
 
-create_issue 20 \
-  "Execute v0.1.0 release" \
-  "release" \
-  "$(cat <<'BODY'
+cat > "$BODY_FILE" << 'EOF'
 Final release coordination. Execute the full checklist to publish Muxara v0.1.0.
 
 **Depends on:** All previous tickets (#1-#19)
@@ -575,12 +506,12 @@ Final release coordination. Execute the full checklist to publish Muxara v0.1.0.
 - [ ] `brew install --cask muxara` tested
 - [ ] App launches and basic functionality works
 - [ ] README badges resolve correctly
-BODY
-)"
+EOF
+create_issue 20 "Execute v0.1.0 release" "release"
 
 echo ""
 echo "=== Summary ==="
-echo "Created labels: ${!LABELS[*]}"
+echo "Created labels: metadata, documentation, community, ci/cd, distribution, release"
 echo "Created milestone: v0.1.0 Public Release"
 echo "Created issues: 20"
 echo ""
