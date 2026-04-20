@@ -7,7 +7,9 @@ use crate::session::{NeedsInputType, RuntimeState, Session, SessionState};
 use crate::tmux::classifier::{self, ClassifierInput};
 use crate::tmux::client::{CapturedPane, TmuxPaneInfo};
 
+#[cfg(test)]
 const DEFAULT_OUTPUT_TAIL_LINES: usize = 20;
+#[cfg(test)]
 const DEFAULT_COOLOFF_SECS: f64 = 300.0;
 
 fn state_priority(state: &SessionState) -> u8 {

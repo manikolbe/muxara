@@ -26,6 +26,7 @@ pub enum TmuxError {
         stderr: String,
         exit_code: Option<i32>,
     },
+    #[allow(dead_code)]
     ParseError(String),
 }
 
@@ -47,6 +48,7 @@ impl fmt::Display for TmuxError {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TmuxSessionInfo {
     pub name: String,
     pub windows: u32,
@@ -55,6 +57,7 @@ pub struct TmuxSessionInfo {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TmuxPaneInfo {
     pub session_name: String,
     pub window_index: u32,
@@ -75,6 +78,7 @@ impl TmuxPaneInfo {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct CapturedPane {
     pub target: String,
     pub normalized_output: String,
@@ -328,6 +332,7 @@ pub fn rename_session(old_name: &str, new_name: &str) -> Result<(), TmuxError> {
 }
 
 /// Return the tty of the first client attached to a tmux session, if any.
+#[allow(dead_code)]
 pub fn list_client_tty(session_name: &str) -> Option<String> {
     run_tmux(&["list-clients", "-t", session_name, "-F", "#{client_tty}"])
         .ok()

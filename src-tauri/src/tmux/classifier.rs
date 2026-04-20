@@ -10,6 +10,7 @@ const CLASSIFY_TAIL_LINES: usize = 50;
 const WORKING_THRESHOLD_SECS: f64 = 5.0;
 
 /// Default minimum seconds of no output change before transitioning from Working → Idle.
+#[cfg(test)]
 const DEFAULT_COOLOFF_SECS: f64 = 300.0;
 
 // ---------------------------------------------------------------------------
@@ -55,6 +56,7 @@ static CLAUDE_TUI_HEADER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"▐▛
 // ---------------------------------------------------------------------------
 
 /// Everything the classifier needs to decide a session's state.
+#[allow(dead_code)]
 pub struct ClassifierInput<'a> {
     pub normalized_output: &'a str,
     pub output_hash: &'a str,
