@@ -253,7 +253,7 @@ The `Preferences` struct holds all user-configurable settings, serialized to/fro
 |---|---|---|---|---|
 | Bootstrap command | `bootstrap_command` | `"claude"` | non-empty, max 500 chars | Yes |
 | Use git worktrees | `use_worktree` | true | — | Yes |
-| Terminal application | `terminal_app` | `"iterm2"` | `"iterm2"` / `"terminal"` | No |
+| Terminal application | `terminal_app` | `"terminal"` | `"iterm2"` / `"terminal"` | No |
 | Working→Idle cool-off | `cooloff_minutes` | 5.0 | 0–60 min | No |
 | Poll interval | `poll_interval_secs` | 1.5 | 0.5–30 s | No |
 | Output lines per card | `output_lines` | 30 | 1–200 | No |

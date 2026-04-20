@@ -41,7 +41,7 @@ fn default_true() -> bool {
 }
 
 fn default_terminal_app() -> String {
-    "iterm2".to_string()
+    "terminal".to_string()
 }
 
 impl Default for Preferences {
@@ -56,7 +56,7 @@ impl Default for Preferences {
             scroll_pause_secs: 5.0,
             bootstrap_command: "claude".to_string(),
             use_worktree: true,
-            terminal_app: "iterm2".to_string(),
+            terminal_app: "terminal".to_string(),
             project_overrides: HashMap::new(),
         }
     }
@@ -163,7 +163,7 @@ mod tests {
         assert_eq!(prefs.grid_columns, 2);
         assert_eq!(prefs.scroll_pause_secs, 5.0);
         assert_eq!(prefs.bootstrap_command, "claude");
-        assert_eq!(prefs.terminal_app, "iterm2");
+        assert_eq!(prefs.terminal_app, "terminal");
         assert!(prefs.project_overrides.is_empty());
     }
 
