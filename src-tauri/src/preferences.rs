@@ -131,8 +131,7 @@ impl Preferences {
         let path = config_dir.join("preferences.json");
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| format!("Failed to serialize preferences: {}", e))?;
-        fs::write(&path, json)
-            .map_err(|e| format!("Failed to write preferences file: {}", e))?;
+        fs::write(&path, json).map_err(|e| format!("Failed to write preferences file: {}", e))?;
         Ok(())
     }
 }

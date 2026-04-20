@@ -6,14 +6,12 @@ use std::process::Command;
 use std::sync::LazyLock;
 
 // Strips ALL ANSI sequences (CSI, OSC) — used for hashing and classification
-static ANSI_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?(\x07|\x1b\\)").unwrap()
-});
+static ANSI_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?(\x07|\x1b\\)").unwrap());
 
 // Strips only non-visual ANSI sequences (cursor movement, OSC) — preserves SGR color/style codes
-static ANSI_CONTROL_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\x1b\[[0-9;]*[A-HJKSTfhilnsu]|\x1b\].*?(\x07|\x1b\\)").unwrap()
-});
+static ANSI_CONTROL_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\x1b\[[0-9;]*[A-HJKSTfhilnsu]|\x1b\].*?(\x07|\x1b\\)").unwrap());
 
 const CAPTURE_SCROLLBACK_LINES: u32 = 200;
 // ---------------------------------------------------------------------------
@@ -69,7 +67,10 @@ pub struct TmuxPaneInfo {
 
 impl TmuxPaneInfo {
     pub fn target(&self) -> String {
-        format!("{}:{}.{}", self.session_name, self.window_index, self.pane_index)
+        format!(
+            "{}:{}.{}",
+            self.session_name, self.window_index, self.pane_index
+        )
     }
 }
 

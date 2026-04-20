@@ -27,34 +27,28 @@ static PERMISSION_FOOTER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"Esc to cancel\s*·\s*Tab to amend").unwrap());
 
 // Hard signals: NeedsInput (AskUserQuestion)
-static ASK_QUESTION_MARKER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"☐\s+\S").unwrap());
+static ASK_QUESTION_MARKER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"☐\s+\S").unwrap());
 static ASK_QUESTION_FOOTER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"Enter to select\s*·\s*↑/↓ to navigate").unwrap());
 
 // Hard signals: Errored
-static ERROR_SHELL: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?im)^error:\s").unwrap());
-static ERROR_TOOL_OUTPUT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"⎿\s+Error:\s").unwrap());
+static ERROR_SHELL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?im)^error:\s").unwrap());
+static ERROR_TOOL_OUTPUT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"⎿\s+Error:\s").unwrap());
 static ERROR_EXIT_CODE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"Error: Exit code \d+").unwrap());
 
 // Plan mode signals
 static PLAN_MODE_TRANSITION: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"Entered plan mode").unwrap());
-static PLAN_MODE_SPINNER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?m)^\s*✻\s").unwrap());
+static PLAN_MODE_SPINNER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?m)^\s*✻\s").unwrap());
 static PLAN_MODE_STATUS_BAR: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"⏸\s*plan mode on").unwrap());
 
 // Recognizable Claude Code output markers
-static CLAUDE_MARKERS: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"❯|▐▛███▜▌|⏺").unwrap());
+static CLAUDE_MARKERS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"❯|▐▛███▜▌|⏺").unwrap());
 
 // Claude TUI header (to detect session recovery after error)
-static CLAUDE_TUI_HEADER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"▐▛███▜▌").unwrap());
+static CLAUDE_TUI_HEADER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"▐▛███▜▌").unwrap());
 
 // ---------------------------------------------------------------------------
 // Classifier input/output
@@ -310,7 +304,10 @@ mod tests {
 
     #[test]
     fn test_shell_error() {
-        assert!(detect_errored("", "error: unknown option '--bad'\n(Did you mean ...?)"));
+        assert!(detect_errored(
+            "",
+            "error: unknown option '--bad'\n(Did you mean ...?)"
+        ));
     }
 
     #[test]
@@ -434,7 +431,10 @@ mod tests {
         };
         let result = classify(&input);
         assert!(matches!(result.state, SessionState::NeedsInput));
-        assert!(matches!(result.needs_input_type, Some(NeedsInputType::Permission)));
+        assert!(matches!(
+            result.needs_input_type,
+            Some(NeedsInputType::Permission)
+        ));
     }
 
     #[test]

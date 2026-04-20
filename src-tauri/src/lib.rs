@@ -19,7 +19,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(Mutex::new(SessionStore::new()))
         .setup(|app| {
-            let config_dir = app.path().app_config_dir()
+            let config_dir = app
+                .path()
+                .app_config_dir()
                 .map_err(|e: tauri::Error| e.to_string())?;
             let prefs = Preferences::load(&config_dir);
             app.manage(Mutex::new(prefs));

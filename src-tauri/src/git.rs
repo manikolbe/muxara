@@ -7,7 +7,13 @@ use std::process::Command;
 pub fn sanitize_worktree_name(name: &str) -> String {
     let sanitized: String = name
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect();
     // Collapse consecutive hyphens and trim
     let mut result = String::new();

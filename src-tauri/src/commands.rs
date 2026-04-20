@@ -13,10 +13,7 @@ use crate::tmux::client;
 #[tauri::command]
 pub fn focus_session(session_id: String) -> Result<(), String> {
     // session_id is a pane target like "sess1:0.0" — extract the session name
-    let session_name = session_id
-        .split(':')
-        .next()
-        .unwrap_or(&session_id);
+    let session_name = session_id.split(':').next().unwrap_or(&session_id);
 
     // Verify the tmux session exists
     let sessions = client::list_sessions().map_err(|e| e.to_string())?;
@@ -67,7 +64,11 @@ end tell"#,
             .ok()
             .and_then(|o| {
                 let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                if s.is_empty() { None } else { Some(s) }
+                if s.is_empty() {
+                    None
+                } else {
+                    Some(s)
+                }
             })
             .unwrap_or_else(|| "tmux".to_string());
 
@@ -88,7 +89,8 @@ end tell"#,
     end if
     activate
 end tell"#,
-            tmux = tmux_path, sess = session_name
+            tmux = tmux_path,
+            sess = session_name
         );
         Command::new("osascript")
             .args(["-e", &attach_script])
@@ -109,7 +111,11 @@ pub fn create_session(
     if working_dir.is_empty() {
         return Err("Working directory is required".to_string());
     }
-    let base_cmd = if command.trim().is_empty() { "claude" } else { command.trim() };
+    let base_cmd = if command.trim().is_empty() {
+        "claude"
+    } else {
+        command.trim()
+    };
 
     let use_worktree = {
         let p = prefs.lock().unwrap();
@@ -141,11 +147,11 @@ pub fn resolve_bootstrap_command(
 }
 
 #[tauri::command]
-pub fn kill_session(session_id: String, store: State<'_, Mutex<SessionStore>>) -> Result<(), String> {
-    let session_name = session_id
-        .split(':')
-        .next()
-        .unwrap_or(&session_id);
+pub fn kill_session(
+    session_id: String,
+    store: State<'_, Mutex<SessionStore>>,
+) -> Result<(), String> {
+    let session_name = session_id.split(':').next().unwrap_or(&session_id);
 
     // Check if session is in a worktree — if so, block on uncommitted changes
     // and clean up the worktree after killing.
@@ -187,15 +193,16 @@ pub fn kill_session(session_id: String, store: State<'_, Mutex<SessionStore>>) -
 }
 
 #[tauri::command]
-pub fn rename_session(session_id: String, new_name: String, store: State<'_, Mutex<SessionStore>>) -> Result<(), String> {
+pub fn rename_session(
+    session_id: String,
+    new_name: String,
+    store: State<'_, Mutex<SessionStore>>,
+) -> Result<(), String> {
     if new_name.is_empty() {
         return Err("Name cannot be empty".to_string());
     }
 
-    let session_name = session_id
-        .split(':')
-        .next()
-        .unwrap_or(&session_id);
+    let session_name = session_id.split(':').next().unwrap_or(&session_id);
 
     // Check for duplicate name
     let sessions = client::list_sessions().map_err(|e| e.to_string())?;
@@ -228,7 +235,14 @@ pub fn get_sessions(
         // Try to start the server; if it fails, return empty
         if client::ensure_server().is_err() {
             let mut store = store.lock().unwrap();
-            store.reconcile(&[], &HashMap::new(), &HashMap::new(), false, output_lines, cooloff_secs);
+            store.reconcile(
+                &[],
+                &HashMap::new(),
+                &HashMap::new(),
+                false,
+                output_lines,
+                cooloff_secs,
+            );
             return store.to_sessions();
         }
     }
@@ -250,7 +264,14 @@ pub fn get_sessions(
     }
 
     let mut store = store.lock().unwrap();
-    store.reconcile(&panes, &captures, &claude_status, true, output_lines, cooloff_secs);
+    store.reconcile(
+        &panes,
+        &captures,
+        &claude_status,
+        true,
+        output_lines,
+        cooloff_secs,
+    );
     store.to_sessions()
 }
 
