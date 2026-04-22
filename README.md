@@ -7,6 +7,9 @@
 ![License](https://img.shields.io/github/license/muxara/muxara)
 ![macOS](https://img.shields.io/badge/platform-macOS_12%2B-blue)
 
+<p align="center">
+  <img src="docs/assets/muxara-demo.gif" alt="Muxara demo — managing parallel Claude Code sessions" width="800" />
+</p>
 
 ## What is Muxara?
 

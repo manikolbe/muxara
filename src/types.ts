@@ -14,6 +14,7 @@ export interface Preferences {
   bootstrapCommand: string;
   useWorktree: boolean;
   terminalApp: string;
+  firstRunComplete: boolean;
   projectOverrides: Record<string, ProjectOverrides>;
 }
 

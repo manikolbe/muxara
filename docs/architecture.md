@@ -31,7 +31,8 @@ muxara/
 │       ├── SessionCard.tsx      Two-zone card: orientation (status, title, dir, recency) + context (output)
 │       ├── StatusBadge.tsx      Colored status dot per session state
 │       ├── NewSessionButton.tsx "+" button to create new Claude Code sessions
-│       └── SettingsPanel.tsx    VS Code-style settings modal with category sidebar
+│       ├── SettingsPanel.tsx    VS Code-style settings modal with category sidebar
+│       └── WelcomeDialog.tsx   First-run dialog: terminal selection + worktree info
 ├── src-tauri/                   Backend (Rust)
 │   ├── src/
 │   │   ├── main.rs              Entry point, delegates to lib.rs

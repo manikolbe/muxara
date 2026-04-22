@@ -6,11 +6,13 @@ import { PreferencesProvider, usePreferences } from "./hooks/usePreferences";
 import { SessionGrid } from "./components/SessionGrid";
 import { NewSessionButton } from "./components/NewSessionButton";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { WelcomeDialog } from "./components/WelcomeDialog";
 
 function Dashboard() {
   const { sessions, loading, error, onScrollActivity } = useSessions();
-  const { prefs } = usePreferences();
+  const { prefs, updatePrefs, loading: prefsLoading } = usePreferences();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
 
@@ -128,6 +130,13 @@ function Dashboard() {
       </div>
 
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {!prefsLoading && !prefs.firstRunComplete && !welcomeDismissed && (
+        <WelcomeDialog
+          prefs={prefs}
+          updatePrefs={updatePrefs}
+          onComplete={() => setWelcomeDismissed(true)}
+        />
+      )}
     </div>
   );
 }

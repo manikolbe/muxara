@@ -33,6 +33,8 @@ pub struct Preferences {
     #[serde(default = "default_terminal_app")]
     pub terminal_app: String,
     #[serde(default)]
+    pub first_run_complete: bool,
+    #[serde(default)]
     pub project_overrides: HashMap<String, ProjectOverrides>,
 }
 
@@ -57,6 +59,7 @@ impl Default for Preferences {
             bootstrap_command: "claude".to_string(),
             use_worktree: true,
             terminal_app: "terminal".to_string(),
+            first_run_complete: false,
             project_overrides: HashMap::new(),
         }
     }

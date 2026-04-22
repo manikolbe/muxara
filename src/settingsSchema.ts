@@ -11,6 +11,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   bootstrapCommand: "claude",
   useWorktree: true,
   terminalApp: "terminal",
+  firstRunComplete: false,
   projectOverrides: {},
 };
 
