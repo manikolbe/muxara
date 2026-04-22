@@ -59,4 +59,5 @@ export interface Session {
   runtimeState: RuntimeState;
   gitBranch: string | null;
   isWorktree: boolean | null;
+  projectName: string | null;
 }

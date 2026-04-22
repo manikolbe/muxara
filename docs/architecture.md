@@ -40,7 +40,7 @@ muxara/
 │   │   ├── preferences.rs       User preferences — struct, validation, JSON persistence
 │   │   ├── session.rs           Frontend-facing data model (Session, SessionState, RuntimeState)
 │   │   ├── store.rs             In-memory session store with reconciliation logic
-│   │   ├── git.rs               Git helpers: repo detection, branch detection, worktree detection
+│   │   ├── git.rs               Git helpers: repo detection, branch, worktree, project name detection
 │   │   └── tmux/
 │   │       ├── mod.rs           Module declaration
 │   │       ├── classifier.rs    State classification: regex-based pattern matching on pane output
@@ -153,16 +153,17 @@ Frontend-facing types serialized via serde:
 
 ### `git.rs` — git helpers
 
-Lightweight helpers for git repository detection, branch detection, and worktree detection. Shells out to `git` via `std::process::Command`, matching the pattern used in `tmux/client.rs`.
+Lightweight helpers for git repository detection, branch detection, worktree detection, and project name resolution. Shells out to `git` via `std::process::Command`, matching the pattern used in `tmux/client.rs`.
 
 **Key functions:**
 - `is_git_repo(path)` — runs `git -C <path> rev-parse --is-inside-work-tree` to check if a path is inside a git repository
 - `detect_branch(path)` — runs `git -C <path> rev-parse --abbrev-ref HEAD` to get the current branch name. Returns `None` for non-git dirs or detached HEAD state
 - `is_worktree(path)` — checks if `<path>/.git` is a file (not a directory), which indicates a git worktree rather than a main checkout
+- `detect_project_name(path)` — resolves a human-friendly project name from the git repo root. For Claude worktree paths (`<repo>/.claude/worktrees/<name>`), extracts the parent repo directory name. For normal repos, uses the repo root basename
 
 **Usage:**
 - `create_session` uses `is_git_repo()` to decide whether to append `-w <name>` to the bootstrap command
-- `SessionStore::reconcile()` uses `detect_branch()` and `is_worktree()` to enrich session data with git metadata. Branch is refreshed every poll cycle so in-session branch switches are reflected immediately; worktree status is cached per working directory change
+- `SessionStore::reconcile()` uses `detect_branch()`, `is_worktree()`, and `detect_project_name()` to enrich session data with git metadata. Branch is refreshed every poll cycle so in-session branch switches are reflected immediately; worktree status and project name are cached per working directory change
 
 ## Data Flow
 

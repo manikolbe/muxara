@@ -36,9 +36,29 @@ const stateConfig: Record<
   },
 };
 
-function dirBasename(path: string): string {
-  const parts = path.split("/").filter(Boolean);
-  return parts.length > 0 ? parts[parts.length - 1] : path;
+function displayProjectName(session: Session): string {
+  if (session.projectName) return session.projectName;
+  const parts = session.workingDirectory.split("/").filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : session.workingDirectory;
+}
+
+const PROJECT_TINTS = [
+  "bg-sky-800/30 text-sky-300",
+  "bg-emerald-800/30 text-emerald-300",
+  "bg-amber-800/30 text-amber-300",
+  "bg-rose-800/30 text-rose-300",
+  "bg-violet-800/30 text-violet-300",
+  "bg-cyan-800/30 text-cyan-300",
+  "bg-orange-800/30 text-orange-300",
+  "bg-teal-800/30 text-teal-300",
+];
+
+function projectTint(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  }
+  return PROJECT_TINTS[Math.abs(hash) % PROJECT_TINTS.length];
 }
 
 function timeAgo(iso: string): string {
@@ -172,22 +192,31 @@ export function SessionCard({ session, onScrollActivity, focused, selected, onFo
               </h3>
             )}
           </div>
-        <p
-          className="text-xs text-gray-400 truncate mb-1"
-          title={session.workingDirectory}
-        >
-          {session.workingDirectory.startsWith("/")
-            ? `~/${session.workingDirectory.split("/").slice(-2).join("/")}`
-            : dirBasename(session.workingDirectory)}
-        </p>
-        {session.gitBranch && (
-          <p className="text-[11px] text-gray-400 truncate mb-1">
-            <span className="text-gray-400">branch:</span> {session.gitBranch}
-            {session.isWorktree && (
-              <span className="ml-1.5 text-[10px] text-violet-400/70 font-medium">WT</span>
-            )}
-          </p>
-        )}
+        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+          <span
+            className={`text-[11px] rounded px-1.5 py-0.5 ${projectTint(displayProjectName(session))}`}
+            title={session.workingDirectory}
+          >
+            {displayProjectName(session)}
+          </span>
+          {session.gitBranch && (
+            <span
+              className="text-[10px] bg-gray-700/40 text-gray-400 rounded px-1.5 py-0.5 truncate max-w-[55%]"
+              title={session.gitBranch}
+            >
+              <span className="text-gray-500">&#x2387;</span>{" "}
+              {session.gitBranch.length > 28
+                ? session.gitBranch.slice(0, 28) + "\u2026"
+                : session.gitBranch}
+            </span>
+          )}
+          {session.isWorktree && (
+            <span
+              className="text-[9px] text-violet-400/50 border border-violet-500/20 rounded px-1.5 py-0.5"
+              title="Session is running in an isolated git worktree"
+            >Worktree</span>
+          )}
+        </div>
         <p className="text-xs text-gray-400">
           {stateLabel(session)} · {timeAgo(session.lastChangedAt)}
         </p>

@@ -47,6 +47,7 @@ pub struct TrackedSession {
     pub consecutive_idle_count: u32,
     pub git_branch: Option<String>,
     pub is_worktree: Option<bool>,
+    pub project_name: Option<String>,
     pub last_git_checked_dir: Option<String>,
 }
 
@@ -102,6 +103,7 @@ impl SessionStore {
                     consecutive_idle_count: 0,
                     git_branch: None,
                     is_worktree: None,
+                    project_name: None,
                     last_git_checked_dir: None,
                 });
 
@@ -122,6 +124,7 @@ impl SessionStore {
                 .unwrap_or(true);
             if dir_changed {
                 session.is_worktree = Some(git::is_worktree(&pane.current_path));
+                session.project_name = git::detect_project_name(&pane.current_path);
                 session.last_git_checked_dir = Some(pane.current_path.clone());
             }
 
@@ -274,6 +277,7 @@ impl SessionStore {
                 },
                 git_branch: tracked.git_branch.clone(),
                 is_worktree: tracked.is_worktree,
+                project_name: tracked.project_name.clone(),
             })
             .collect();
 

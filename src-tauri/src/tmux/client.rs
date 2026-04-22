@@ -244,12 +244,24 @@ pub fn ensure_server() -> Result<(), TmuxError> {
     // highlight-to-copy works in both Terminal.app and iTerm2.
     // Bind MouseDragEnd in both emacs and vi copy modes to cover all users.
     let _ = run_tmux(&[
-        "bind-key", "-T", "copy-mode", "MouseDragEnd1Pane",
-        "send-keys", "-X", "copy-pipe-and-cancel", "pbcopy",
+        "bind-key",
+        "-T",
+        "copy-mode",
+        "MouseDragEnd1Pane",
+        "send-keys",
+        "-X",
+        "copy-pipe-and-cancel",
+        "pbcopy",
     ]);
     let _ = run_tmux(&[
-        "bind-key", "-T", "copy-mode-vi", "MouseDragEnd1Pane",
-        "send-keys", "-X", "copy-pipe-and-cancel", "pbcopy",
+        "bind-key",
+        "-T",
+        "copy-mode-vi",
+        "MouseDragEnd1Pane",
+        "send-keys",
+        "-X",
+        "copy-pipe-and-cancel",
+        "pbcopy",
     ]);
     Ok(())
 }

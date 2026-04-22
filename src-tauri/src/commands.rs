@@ -232,8 +232,7 @@ pub fn focus_session(
     let mut switched = false;
 
     for tty in &all_ttys {
-        if terminal_owns_tty(&terminal_app, tty)
-            && client::switch_client(tty, session_name).is_ok()
+        if terminal_owns_tty(&terminal_app, tty) && client::switch_client(tty, session_name).is_ok()
         {
             switched = true;
             match terminal_app.as_str() {

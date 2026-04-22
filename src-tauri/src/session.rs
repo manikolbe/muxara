@@ -43,4 +43,5 @@ pub struct Session {
     pub runtime_state: RuntimeState,
     pub git_branch: Option<String>,
     pub is_worktree: Option<bool>,
+    pub project_name: Option<String>,
 }

@@ -32,6 +32,38 @@ pub fn sanitize_worktree_name(name: &str) -> String {
     result.trim_end_matches('-').to_string()
 }
 
+/// Return the project name for a directory inside a git repo.
+/// For Claude worktree paths (`<repo>/.claude/worktrees/<name>`), returns the
+/// parent repo directory name. For normal repos, returns the repo root basename.
+pub fn detect_project_name(path: &str) -> Option<String> {
+    let output = Command::new("git")
+        .args(["-C", path, "rev-parse", "--show-toplevel"])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let toplevel = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if toplevel.is_empty() {
+        return None;
+    }
+
+    // For Claude worktrees at <repo>/.claude/worktrees/<name>, the toplevel
+    // is the worktree dir itself.  We want the parent repo name.
+    if let Some(idx) = toplevel.find("/.claude/worktrees/") {
+        let repo_root = &toplevel[..idx];
+        return Path::new(repo_root)
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string());
+    }
+
+    Path::new(&toplevel)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+}
+
 /// Check whether a directory is inside a git repository.
 pub fn is_git_repo(path: &str) -> bool {
     Command::new("git")
