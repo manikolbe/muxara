@@ -15,13 +15,7 @@
 
 Running multiple Claude Code sessions in parallel quickly becomes unwieldy. Which session needs your attention? Which is still working? Which one errored out ten minutes ago? Muxara solves this by providing a persistent, always-visible dashboard that shows the live status of every session at a glance. Click any session card to switch to it instantly in your terminal, or use keyboard shortcuts to navigate without leaving the dashboard.
 
-## Why Muxara?
-
-Once you start running multiple Claude Code sessions in parallel — bouncing between agents, losing track of which one needs input — things get chaotic fast. Muxara is the control plane that keeps it manageable.
-
-Anthropic offers a paid [Claude Code Desktop](https://claude.ai/code) app with built-in multi-session support. Muxara is a free, open-source alternative for CLI power users who don't have access to that, or who prefer a lightweight dashboard on top of their existing terminal workflow.
-
-We hope projects like this encourage Anthropic to open-source the desktop experience for everyone.
+Anthropic offers a paid [Claude Code Desktop](https://claude.ai/code) app with built-in multi-session support. Muxara is a free, open-source alternative for CLI power users who don't have access to that, or who prefer a lightweight dashboard on top of their existing terminal workflow. We hope projects like this encourage Anthropic to open-source the desktop experience for everyone.
 
 ## Features
 
