@@ -10,43 +10,6 @@ use crate::session::Session;
 use crate::store::SessionStore;
 use crate::tmux::client;
 
-/// Resolve the absolute path to tmux.
-/// Terminal apps launched via AppleScript `command` parameters may not inherit
-/// the user's shell $PATH, so we need the full path. Tries `which` first
-/// (works when Muxara is launched from a terminal), then checks common
-/// installation paths (works when launched from Spotlight/Dock where PATH
-/// is the system default and won't include Homebrew).
-fn resolve_tmux_path() -> String {
-    // Try `which` first
-    if let Some(path) = Command::new("which")
-        .arg("tmux")
-        .output()
-        .ok()
-        .and_then(|o| {
-            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            if s.is_empty() || !s.starts_with('/') {
-                None
-            } else {
-                Some(s)
-            }
-        })
-    {
-        return path;
-    }
-
-    // Fallback: check common installation paths
-    for candidate in &[
-        "/opt/homebrew/bin/tmux", // Homebrew on Apple Silicon
-        "/usr/local/bin/tmux",    // Homebrew on Intel, MacPorts
-        "/usr/bin/tmux",          // System install
-    ] {
-        if std::path::Path::new(candidate).exists() {
-            return candidate.to_string();
-        }
-    }
-
-    "tmux".to_string()
-}
 
 /// Escape a string for safe inclusion inside an AppleScript double-quoted string.
 /// AppleScript's only escape is `\"` for a literal quote and `\\` for a literal
@@ -244,7 +207,7 @@ pub fn focus_session(
     }
 
     if !switched {
-        let tmux_path = resolve_tmux_path();
+        let tmux_path = client::tmux_path().to_string();
         match terminal_app.as_str() {
             "terminal" => open_terminal_session(session_name, &tmux_path)?,
             _ => open_iterm2_session(session_name, &tmux_path)?,

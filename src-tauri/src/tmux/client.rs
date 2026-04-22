@@ -14,6 +14,41 @@ static ANSI_CONTROL_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\x1b\[[0-9;]*[A-HJKSTfhilnsu]|\x1b\].*?(\x07|\x1b\\)").unwrap());
 
 const CAPTURE_SCROLLBACK_LINES: u32 = 200;
+
+/// Cached absolute path to the tmux binary.
+/// macOS apps launched from Spotlight/Dock don't inherit the user's shell PATH,
+/// so we resolve the full path once and reuse it for every invocation.
+static TMUX_PATH: LazyLock<String> = LazyLock::new(|| {
+    // Try `which` first (works when launched from a terminal)
+    if let Some(path) = Command::new("which")
+        .arg("tmux")
+        .output()
+        .ok()
+        .and_then(|o| {
+            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if s.is_empty() || !s.starts_with('/') {
+                None
+            } else {
+                Some(s)
+            }
+        })
+    {
+        return path;
+    }
+
+    // Fallback: check common installation paths
+    for candidate in &[
+        "/opt/homebrew/bin/tmux", // Homebrew on Apple Silicon
+        "/usr/local/bin/tmux",    // Homebrew on Intel, MacPorts
+        "/usr/bin/tmux",          // System install
+    ] {
+        if std::path::Path::new(candidate).exists() {
+            return candidate.to_string();
+        }
+    }
+
+    "tmux".to_string()
+});
 // ---------------------------------------------------------------------------
 // Error type
 // ---------------------------------------------------------------------------
@@ -91,8 +126,13 @@ pub struct CapturedPane {
 // Shell helpers
 // ---------------------------------------------------------------------------
 
+/// Return the resolved tmux path for use in AppleScript and other contexts.
+pub fn tmux_path() -> &'static str {
+    &TMUX_PATH
+}
+
 fn run_tmux(args: &[&str]) -> Result<String, TmuxError> {
-    let output = Command::new("tmux")
+    let output = Command::new(tmux_path())
         .args(args)
         .env("TERM", "xterm-256color")
         .output();
