@@ -15,6 +15,28 @@ static ANSI_CONTROL_RE: LazyLock<Regex> =
 
 const CAPTURE_SCROLLBACK_LINES: u32 = 200;
 
+/// Cached default tmux socket path.
+/// macOS apps launched from Spotlight/Dock get a different TMPDIR than terminal
+/// sessions, causing tmux to look for its socket in the wrong place. We resolve
+/// the canonical socket path once: /private/tmp/tmux-<uid>/default.
+static TMUX_SOCKET: LazyLock<Option<String>> = LazyLock::new(|| {
+    let uid = Command::new("id").arg("-u").output().ok()
+        .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<u32>().ok())
+        .unwrap_or(501);
+    let path = format!("/private/tmp/tmux-{}/default", uid);
+    if std::path::Path::new(&path).exists() {
+        Some(path)
+    } else {
+        // Also check without /private prefix
+        let path2 = format!("/tmp/tmux-{}/default", uid);
+        if std::path::Path::new(&path2).exists() {
+            Some(path2)
+        } else {
+            None
+        }
+    }
+});
+
 /// Cached absolute path to the tmux binary.
 /// macOS apps launched from Spotlight/Dock don't inherit the user's shell PATH,
 /// so we resolve the full path once and reuse it for every invocation.
@@ -132,7 +154,13 @@ pub fn tmux_path() -> &'static str {
 }
 
 fn run_tmux(args: &[&str]) -> Result<String, TmuxError> {
-    let output = Command::new(tmux_path())
+    let mut cmd = Command::new(tmux_path());
+    // Ensure we connect to the user's existing tmux server, even when
+    // launched from Spotlight/Dock where TMPDIR differs from the terminal.
+    if let Some(socket) = TMUX_SOCKET.as_deref() {
+        cmd.args(["-S", socket]);
+    }
+    let output = cmd
         .args(args)
         .env("TERM", "xterm-256color")
         .output();
