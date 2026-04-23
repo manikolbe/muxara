@@ -20,8 +20,16 @@ const CAPTURE_SCROLLBACK_LINES: u32 = 200;
 /// sessions, causing tmux to look for its socket in the wrong place. We resolve
 /// the canonical socket path once: /private/tmp/tmux-<uid>/default.
 static TMUX_SOCKET: LazyLock<Option<String>> = LazyLock::new(|| {
-    let uid = Command::new("id").arg("-u").output().ok()
-        .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<u32>().ok())
+    let uid = Command::new("id")
+        .arg("-u")
+        .output()
+        .ok()
+        .and_then(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .trim()
+                .parse::<u32>()
+                .ok()
+        })
         .unwrap_or(501);
     let path = format!("/private/tmp/tmux-{}/default", uid);
     if std::path::Path::new(&path).exists() {
@@ -160,10 +168,7 @@ fn run_tmux(args: &[&str]) -> Result<String, TmuxError> {
     if let Some(socket) = TMUX_SOCKET.as_deref() {
         cmd.args(["-S", socket]);
     }
-    let output = cmd
-        .args(args)
-        .env("TERM", "xterm-256color")
-        .output();
+    let output = cmd.args(args).env("TERM", "xterm-256color").output();
 
     match output {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(TmuxError::NotInstalled),

@@ -10,7 +10,6 @@ use crate::session::Session;
 use crate::store::SessionStore;
 use crate::tmux::client;
 
-
 /// Escape a string for safe inclusion inside an AppleScript double-quoted string.
 /// AppleScript's only escape is `\"` for a literal quote and `\\` for a literal
 /// backslash.
