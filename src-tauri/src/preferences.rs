@@ -32,6 +32,8 @@ pub struct Preferences {
     pub use_worktree: bool,
     #[serde(default = "default_terminal_app")]
     pub terminal_app: String,
+    #[serde(default = "default_scrollback_lines")]
+    pub scrollback_lines: u32,
     #[serde(default)]
     pub first_run_complete: bool,
     #[serde(default)]
@@ -44,6 +46,10 @@ fn default_true() -> bool {
 
 fn default_terminal_app() -> String {
     "terminal".to_string()
+}
+
+fn default_scrollback_lines() -> u32 {
+    50000
 }
 
 impl Default for Preferences {
@@ -59,6 +65,7 @@ impl Default for Preferences {
             bootstrap_command: "claude".to_string(),
             use_worktree: true,
             terminal_app: "terminal".to_string(),
+            scrollback_lines: 50000,
             first_run_complete: false,
             project_overrides: HashMap::new(),
         }
@@ -84,6 +91,9 @@ impl Preferences {
         }
         if !(0.0..=60.0).contains(&self.scroll_pause_secs) {
             return Err("Scroll pause must be between 0 and 60 seconds".to_string());
+        }
+        if !(1000..=500_000).contains(&self.scrollback_lines) {
+            return Err("Scrollback lines must be between 1000 and 500000".to_string());
         }
         if self.bootstrap_command.trim().is_empty() {
             return Err("Bootstrap command must not be empty".to_string());
@@ -166,6 +176,7 @@ mod tests {
         assert_eq!(prefs.grid_columns, 2);
         assert_eq!(prefs.scroll_pause_secs, 5.0);
         assert_eq!(prefs.bootstrap_command, "claude");
+        assert_eq!(prefs.scrollback_lines, 50000);
         assert_eq!(prefs.terminal_app, "terminal");
         assert!(prefs.project_overrides.is_empty());
     }

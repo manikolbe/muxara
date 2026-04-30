@@ -397,7 +397,12 @@ pub fn capture_pane(target: &str) -> Result<CapturedPane, TmuxError> {
 
 /// Create a new tmux session with the given name and working directory,
 /// then send the bootstrap command to start Claude Code in the new pane.
-pub fn create_session(name: &str, working_dir: &str, command: &str) -> Result<(), TmuxError> {
+pub fn create_session(
+    name: &str,
+    working_dir: &str,
+    command: &str,
+    scrollback_lines: u32,
+) -> Result<(), TmuxError> {
     ensure_server()?;
 
     // Check for duplicate session name
@@ -410,14 +415,21 @@ pub fn create_session(name: &str, working_dir: &str, command: &str) -> Result<()
     }
 
     run_tmux(&["new-session", "-d", "-s", name, "-c", working_dir])?;
-    run_tmux(&["set-option", "-t", name, "mouse", "on"])?;
+    configure_session(name, scrollback_lines)?;
     run_tmux(&["send-keys", "-t", name, command, "Enter"])?;
     Ok(())
 }
 
-/// Enable mouse mode on a tmux session so scroll-up enters copy mode automatically.
-pub fn enable_mouse(session_name: &str) -> Result<(), TmuxError> {
+/// Enable mouse mode and set scrollback history on a tmux session.
+pub fn configure_session(session_name: &str, scrollback_lines: u32) -> Result<(), TmuxError> {
     run_tmux(&["set-option", "-t", session_name, "mouse", "on"])?;
+    run_tmux(&[
+        "set-option",
+        "-t",
+        session_name,
+        "history-limit",
+        &scrollback_lines.to_string(),
+    ])?;
     Ok(())
 }
 

@@ -8,6 +8,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   contextZoneMaxHeight: 192,
   gridColumns: 2,
   scrollPauseSecs: 5,
+  scrollbackLines: 50000,
   bootstrapCommand: "claude",
   useWorktree: true,
   terminalApp: "terminal",
@@ -42,6 +43,20 @@ export const SETTINGS_SCHEMA: SettingDefinition[] = [
       { value: "iterm2", label: "iTerm2" },
       { value: "terminal", label: "Terminal" },
     ],
+  },
+
+  {
+    key: "scrollbackLines",
+    label: "Scrollback Lines",
+    description:
+      "Maximum number of lines of terminal history you can scroll back through in a session. Higher values let you scroll back to the beginning of long Claude sessions.",
+    category: "Sessions",
+    type: "number",
+    default: 50000,
+    min: 1000,
+    max: 500000,
+    step: 1000,
+    unit: "lines",
   },
 
   {

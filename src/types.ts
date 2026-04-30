@@ -11,6 +11,7 @@ export interface Preferences {
   contextZoneMaxHeight: number;
   gridColumns: number;
   scrollPauseSecs: number;
+  scrollbackLines: number;
   bootstrapCommand: string;
   useWorktree: boolean;
   terminalApp: string;

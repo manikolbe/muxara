@@ -232,9 +232,9 @@ pub fn create_session(
         command.trim()
     };
 
-    let use_worktree = {
+    let (use_worktree, scrollback_lines) = {
         let p = prefs.lock().unwrap();
-        p.effective_use_worktree(&working_dir)
+        (p.effective_use_worktree(&working_dir), p.scrollback_lines)
     };
 
     let final_cmd = if use_worktree && git::is_git_repo(&working_dir) {
@@ -244,7 +244,8 @@ pub fn create_session(
         base_cmd.to_string()
     };
 
-    client::create_session(&name, &working_dir, &final_cmd).map_err(|e| e.to_string())
+    client::create_session(&name, &working_dir, &final_cmd, scrollback_lines)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -339,9 +340,9 @@ pub fn get_sessions(
     store: State<'_, Mutex<SessionStore>>,
     prefs: State<'_, Mutex<Preferences>>,
 ) -> Vec<Session> {
-    let (output_lines, cooloff_secs) = {
+    let (output_lines, cooloff_secs, scrollback_lines) = {
         let p = prefs.lock().unwrap();
-        (p.output_lines, p.cooloff_minutes * 60.0)
+        (p.output_lines, p.cooloff_minutes * 60.0, p.scrollback_lines)
     };
 
     let tmux_alive = client::is_tmux_alive();
@@ -372,8 +373,8 @@ pub fn get_sessions(
         for pane in &panes {
             let target = pane.target();
             if store_guard.get_session(&target).is_none() {
-                // New session — enable mouse before first reconcile
-                let _ = client::enable_mouse(&pane.session_name);
+                // New session — configure mouse and scrollback before first reconcile
+                let _ = client::configure_session(&pane.session_name, scrollback_lines);
             }
         }
     }
