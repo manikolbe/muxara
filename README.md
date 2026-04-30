@@ -78,6 +78,16 @@ Muxara includes a VS Code-style settings panel accessible from the dashboard. Se
 
 For technical details on architecture, module responsibilities, data flow, and key patterns, see [docs/architecture.md](docs/architecture.md).
 
+## Troubleshooting
+
+### Mouse scroll not working in iTerm2
+
+If scrolling up in a session doesn't enter tmux copy mode (instead scrolling the iTerm2 buffer), enable mouse reporting:
+
+**iTerm2 → Preferences → Advanced → search "mouse"** → enable *"Scroll wheel sends arrow keys when in alternate screen mode"*
+
+This allows iTerm2 to forward scroll events to tmux, which handles entering/exiting copy mode automatically.
+
 ## Contributing
 
 Contributions are welcome. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started, coding standards, and the pull request process.
