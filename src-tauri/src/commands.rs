@@ -364,6 +364,20 @@ pub fn get_sessions(
 
     let panes = client::list_panes(None).unwrap_or_default();
 
+    // Ensure mouse mode is enabled on all sessions so scroll-up works
+    // without requiring manual tmux key bindings. Only apply once per session
+    // (tracked in the store) to avoid unnecessary tmux calls every poll cycle.
+    {
+        let store_guard = store.lock().unwrap();
+        for pane in &panes {
+            let target = pane.target();
+            if store_guard.get_session(&target).is_none() {
+                // New session — enable mouse before first reconcile
+                let _ = client::enable_mouse(&pane.session_name);
+            }
+        }
+    }
+
     // Get process table once for all panes
     let ps_output = client::get_process_table();
 

@@ -415,6 +415,12 @@ pub fn create_session(name: &str, working_dir: &str, command: &str) -> Result<()
     Ok(())
 }
 
+/// Enable mouse mode on a tmux session so scroll-up enters copy mode automatically.
+pub fn enable_mouse(session_name: &str) -> Result<(), TmuxError> {
+    run_tmux(&["set-option", "-t", session_name, "mouse", "on"])?;
+    Ok(())
+}
+
 /// Kill a tmux session by name.
 pub fn kill_session(session_name: &str) -> Result<(), TmuxError> {
     run_tmux(&["kill-session", "-t", session_name])?;
